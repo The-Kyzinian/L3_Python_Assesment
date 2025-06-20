@@ -275,6 +275,7 @@ class ResourcePage(ttk.Frame):
                         "description": description,
                         "available": availability,
                         "owner": owner_name,
+                        "days_booked": self.resources.resources[resource_name].get("days_booked", []),
                     }
                     msgbox.showinfo("Success", f"Resource '{resource_name}' edited successfully.")
                     self.resources.save_resources()
@@ -394,7 +395,7 @@ class BookerPage(ttk.Frame):
                 self.resources.resources[resource_name]["days_booked"].extend(days_booked)
                 self.resources.save_resources()
                 self.bookings.bookings[booking_name] = {
-                    "user": user_name,
+                    "owner": user_name,
                     "resource": resource_name,
                     "start_date": booking_start_date.isoformat(),
                     "end_date": booking_end_date.isoformat(),
@@ -406,12 +407,88 @@ class BookerPage(ttk.Frame):
                 msgbox.showerror("Error", "Booking does not exist.")
         
     def edit_booking(self):
-        booking_name = dialog.askstring("Edit Booking", "Enter booking name to edit:")
-        if booking_name:
-                # Here you would add logic to edit the resource
-                msgbox.showinfo("Success", f"Booking '{booking_name}' edited successfully.")
-        else:
-            msgbox.showerror("Error", "Booking does not exist.")
+        while True:
+            booking_name = dialog.askstring("Edit Booking", "Enter booking name to edit:")
+            if booking_name in self.bookings.bookings:
+                user_name = self.bookings.bookings[booking_name]["owner"]
+                password = dialog.askstring("Login", "Enter password to edit booking:", show='*')
+                if password == self.users.users[user_name]["password"]:
+                    while True:
+                        new_booking_name = dialog.askstring("Edit Booking Name", "Enter new booking name:", initialvalue=booking_name)
+                        if new_booking_name != booking_name:
+                            if new_booking_name in self.bookings.bookings:
+                                msgbox.showerror("Error", "Booking name already exists.")
+                            else:
+                                booking_name = new_booking_name
+                                break
+                    resource_name = self.bookings.bookings[booking_name]["resource"]
+                    while True:
+                        new_resource_name = dialog.askstring("Resource Name", "Enter new resource name:", initialvalue=resource_name)
+                        if new_resource_name in self.resources.resources:
+                            if self.resources.resources[new_resource_name]["available"]:
+                                resource_name = new_resource_name
+                                break
+                            else:
+                                msgbox.showerror("Error", "Resource is not available for booking.")
+                        else:
+                            msgbox.showerror("Error", "Resource does not exist. Please enter a valid resource name.")
+                    while True:
+                        booking_start_date = dialog.askstring("Booking Date", "Enter new booking start date (YYYY-MM-DD):")
+                        try:
+                            booking_start_date = datetime.datetime.strptime(booking_start_date, "%Y-%m-%d").date()
+                            if booking_start_date < datetime.date.today():
+                                msgbox.showerror("Error", "Booking date cannot be in the past.")
+                            else:
+                                booked_dates = [
+                                    datetime.datetime.strptime(d, "%Y-%m-%d").date()
+                                    if isinstance(d, str) else d
+                                    for d in self.resources.resources[resource_name]["days_booked"]
+                                ]
+                                if booking_start_date in booked_dates:
+                                    msgbox.showerror("Error", "Resource is already booked for this date.")
+                                else:  
+                                    break
+                        except ValueError:
+                            msgbox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
+                    while True:
+                        booking_end_date = dialog.askstring("Booking Date", "Enter new booking end date (YYYY-MM-DD):")
+                        try:
+                            booking_end_date = datetime.datetime.strptime(booking_end_date, "%Y-%m-%d").date()
+                            if booking_end_date <= booking_start_date:
+                                msgbox.showerror("Error", "End date must be after start date.")
+                            else:
+                                booked_dates = [
+                                    datetime.datetime.strptime(d, "%Y-%m-%d").date()
+                                    if isinstance(d, str) else d
+                                    for d in self.resources.resources[resource_name]["days_booked"]
+                                ]
+                                if booking_end_date in booked_dates:
+                                    msgbox.showerror("Error", "Resource is already booked for this date.")
+                                else:
+                                    break
+                        except ValueError:
+                            msgbox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
+                    days_booked = [(booking_start_date + datetime.timedelta(days=i)).isoformat()
+                        for i in range((booking_end_date - booking_start_date).days + 1)]
+                    self.resources.resources[resource_name]["days_booked"] = [
+                        d for d in self.resources.resources[resource_name]["days_booked"]
+                        if d not in days_booked
+                    ]
+                    self.resources.resources[resource_name]["days_booked"].extend(days_booked)
+                    self.resources.save_resources() 
+                    self.bookings.bookings[booking_name] = {
+                        "owner": user_name,
+                        "resource": resource_name,
+                        "start_date": booking_start_date.isoformat(),
+                        "end_date": booking_end_date.isoformat(),
+                    }
+                    self.bookings.save_bookings()
+                    msgbox.showinfo("Success", f"Booking '{booking_name}' edited successfully.")
+                    break
+                else:
+                    msgbox.showerror("Error", "Incorrect password.")
+                    break
+        
         
     def delete_booking(self):
         booking_name = dialog.askstring("Delete Booking", "Enter booking name to delete:")
