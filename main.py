@@ -87,6 +87,9 @@ class UserPage(ttk.Frame):
         ttk.Button(self, text="Delete User", command=self.delete_user).pack(pady=5)
     
     def create_user(self):
+        self.users.load_users()
+        self.resources.load_resources()
+        self.bookings.load_bookings()
         while True:
             user_name = dialog.askstring("Create New User", "Enter Username:")
             if user_name == None:
@@ -99,12 +102,10 @@ class UserPage(ttk.Frame):
             else:
                 msgbox.showerror("Error", "User already exists.")
         while True:    
-            full_name = dialog.askstring("Full Name", "Enter Full Name:")
+            full_name = dialog.askstring("Full Name", "Enter Full Name (Optional):")
             if full_name == None:
                     msgbox.showinfo("Cancelled", "User creation cancelled.")
                     return
-            elif full_name == "":
-                msgbox.showerror("Error", "Full name cannot be empty.")
             else:
                 break
         while True:
@@ -121,6 +122,9 @@ class UserPage(ttk.Frame):
         msgbox.showinfo("Success", f"New user '{user_name}' created successfully.")
         
     def edit_user(self): 
+        self.users.load_users()
+        self.resources.load_resources()
+        self.bookings.load_bookings()
         while True:    
             user_name = dialog.askstring("Edit User", "Enter username to be edited:")
             if user_name == None:
@@ -159,8 +163,6 @@ class UserPage(ttk.Frame):
                         if full_name == None:
                             msgbox.showinfo("Cancelled", "User edit cancelled.")
                             return
-                        elif full_name == "":
-                            msgbox.showerror("Error", "Full name cannot be empty.")
                         else:
                             break
                     while True:
@@ -193,6 +195,9 @@ class UserPage(ttk.Frame):
                 msgbox.showerror("Error", "User does not exist.")
         
     def delete_user(self):
+        self.users.load_users()
+        self.resources.load_resources()
+        self.bookings.load_bookings()
         while True:
             user_name = dialog.askstring("Delete User", "Enter username to be deleted:")
             if user_name == None:
@@ -266,6 +271,9 @@ class ResourcePage(ttk.Frame):
         ttk.Button(self, text="Delete Resource", command=self.delete_resource).pack(pady=5)
         
     def create_resource(self):
+        self.users.load_users()
+        self.resources.load_resources()
+        self.bookings.load_bookings()
         while True:
             resource_name = dialog.askstring("Create Resource", "Enter resource name:")
             if resource_name == None:
@@ -322,6 +330,9 @@ class ResourcePage(ttk.Frame):
                 msgbox.showerror("Error", "Resource already exists.")
             
     def edit_resource(self):
+        self.users.load_users()
+        self.resources.load_resources()
+        self.bookings.load_bookings()
         while True:    
             resource_name = dialog.askstring("Edit Resource", "Enter resource name to edit:")
             if resource_name == None:
@@ -465,6 +476,9 @@ class ResourcePage(ttk.Frame):
                 msgbox.showerror("Error", "Resource does not exist.")
         
     def delete_resource(self):
+        self.users.load_users()
+        self.resources.load_resources()
+        self.bookings.load_bookings()
         while True:
             resource_name = dialog.askstring("Delete Resource", "Enter resource name to delete:")
             if resource_name == None:
@@ -528,6 +542,9 @@ class BookerPage(ttk.Frame):
         ttk.Button(self, text="Delete Booking", command=self.delete_booking).pack(pady=5)
     
     def create_booking(self):
+        self.users.load_users()
+        self.resources.load_resources()
+        self.bookings.load_bookings()
         while True:
             booking_name = dialog.askstring("Create Booking", "Enter booking name:")
             if booking_name == None:
@@ -638,6 +655,9 @@ class BookerPage(ttk.Frame):
                 msgbox.showerror("Error", "Booking does not exist.")
         
     def edit_booking(self):
+        self.users.load_users()
+        self.resources.load_resources()
+        self.bookings.load_bookings()
         while True:
             booking_name = dialog.askstring("Edit Booking", "Enter booking name to edit:")
             if booking_name == None:
@@ -753,6 +773,9 @@ class BookerPage(ttk.Frame):
                 msgbox.showerror("Error", "Booking does not exist.")
                   
     def delete_booking(self):
+        self.users.load_users()
+        self.resources.load_resources()
+        self.bookings.load_bookings()
         while True:
             booking_name = dialog.askstring("Delete Booking", "Enter booking name to delete:")
             if booking_name == None:
@@ -811,6 +834,7 @@ class ViewerPage(ttk.Frame):
         ttk.Button(self, text="View bookings", command=self.view_resources).pack(pady=5)
     
     def view_users(self):
+        self.users.load_users()
         user_list = "\n".join(self.main_app.pages['UserPage'].users.users.keys())
         if user_list:
             msgbox.showinfo("Users", f"Current Users:\n{user_list}")
@@ -818,6 +842,7 @@ class ViewerPage(ttk.Frame):
             msgbox.showinfo("Users", "No users found.")
     
     def view_resources(self):
+        self.resources.load_resources()
         resource_list = "\n".join(self.main_app.pages['ResourcePage'].resources.resources.keys())
         if resource_list:
             msgbox.showinfo("Resources", f"Current Resources:\n{resource_list}")
@@ -825,6 +850,7 @@ class ViewerPage(ttk.Frame):
             msgbox.showinfo("Resources", "No resources found.")
     
     def view_bookings(self):
+        self.bookings.load_bookings()
         booking_list = "\n".join(self.main_app.pages['BookerPage'].bookings.bookings.keys())
         if booking_list:
             msgbox.showinfo("Bookings", f"Current Bookings:\n{booking_list}")
