@@ -488,15 +488,41 @@ class BookerPage(ttk.Frame):
                 else:
                     msgbox.showerror("Error", "Incorrect password.")
                     break
-        
-        
+            else:
+                msgbox.showerror("Error", "Booking does not exist.")
+                  
     def delete_booking(self):
-        booking_name = dialog.askstring("Delete Booking", "Enter booking name to delete:")
-        if booking_name:
-            # Here you would add logic to delete the resource
-            msgbox.showinfo("Success", f"Booking '{booking_name}' deleted successfully.")
-        else:
-            msgbox.showerror("Error", "Booking does not exist.")
+        while True:
+            booking_name = dialog.askstring("Delete Booking", "Enter booking name to delete:")
+            if booking_name in self.bookings.bookings:
+                user_name = self.bookings.bookings[booking_name]["owner"]
+                password = dialog.askstring("Login", "Enter password to delete booking:", show='*')
+                if password == self.users.users[user_name]["password"]:
+                    confirm = msgbox.askyesno("Confirm Delete", f"Are you sure you want to delete booking '{booking_name}'?")
+                    if confirm:
+                        resource_name = self.bookings.bookings[booking_name]["resource"]
+                        start_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["start_date"], "%Y-%m-%d").date()
+                        end_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["end_date"], "%Y-%m-%d").date()
+                        days_booked = [(start_date + datetime.timedelta(days=i)).isoformat()
+                            for i in range((end_date - start_date).days + 1)]
+                        self.resources.resources[resource_name]["days_booked"] = [
+                            d for d in self.resources.resources[resource_name]["days_booked"]
+                            if d not in days_booked
+                        ]
+                        self.resources.save_resources()
+                        del self.bookings.bookings[booking_name]
+                        self.bookings.save_bookings()
+                        msgbox.showinfo("Success", f"Booking '{booking_name}' deleted successfully.")
+                        break
+                    else:
+                        msgbox.showinfo("Cancelled", "Booking deletion cancelled.")
+                        break
+                else:
+                    msgbox.showerror("Error", "Incorrect password.")
+                    break
+            else:
+                msgbox.showerror("Error", "Booking does not exist.")
+        
         
 class ViewerPage(ttk.Frame):
     title = "Resource/Booking Viewer"
