@@ -89,12 +89,33 @@ class UserPage(ttk.Frame):
     def create_user(self):
         while True:
             user_name = dialog.askstring("Create New User", "Enter Username:")
-            if user_name not in self.users.users:
+            if user_name == None:
+                msgbox.showinfo("Cancelled", "User creation cancelled.")
+                return
+            elif user_name == "":
+                msgbox.showerror("Error", "Username cannot be empty.")
+            elif user_name not in self.users.users:
                 break
             else:
                 msgbox.showerror("Error", "User already exists.")
-        full_name = dialog.askstring("Full Name", "Enter Full Name:")
-        password = dialog.askstring("Password", "Enter Password:", show='*')
+        while True:    
+            full_name = dialog.askstring("Full Name", "Enter Full Name:")
+            if full_name == None:
+                    msgbox.showinfo("Cancelled", "User creation cancelled.")
+                    return
+            elif full_name == "":
+                msgbox.showerror("Error", "Full name cannot be empty.")
+            else:
+                break
+        while True:
+            password = dialog.askstring("Password", "Enter Password:", show='*')
+            if password == None:
+                msgbox.showinfo("Cancelled", "User creation cancelled.")
+                return
+            elif password == "":
+                msgbox.showerror("Error", "Password cannot be empty.")
+            else:
+              break  
         self.users.users[user_name] = {"full_name": full_name, "password": password}
         self.users.save_users()
         msgbox.showinfo("Success", f"New user '{user_name}' created successfully.")
@@ -102,24 +123,66 @@ class UserPage(ttk.Frame):
     def edit_user(self): 
         while True:    
             user_name = dialog.askstring("Edit User", "Enter username to be edited:")
-            if user_name in self.users.users:
+            if user_name == None:
+                msgbox.showinfo("Cancelled", "User edit cancelled.")
+                return
+            elif user_name == "":
+                msgbox.showerror("Error", "Username cannot be empty.")
+            elif user_name in self.users.users:
                 password = dialog.askstring("Login", "Enter password to edit user:", show='*')
-                if password == self.users.users[user_name]["password"]:
+                if password == None:
+                    msgbox.showinfo("Cancelled", "User edit cancelled.")
+                    return
+                elif password == "":
+                    msgbox.showerror("Error", "Password cannot be empty.")
+                elif password == self.users.users[user_name]["password"]:
                     while True:
                         new_username = dialog.askstring("Edit Username", "Enter new username:", initialvalue=user_name)
                         # If username changed and is not taken
-                        if new_username != user_name:
+                        if new_username == None:
+                            msgbox.showinfo("Cancelled", "User edit cancelled.")
+                            return
+                        elif new_username == "":
+                            msgbox.showerror("Error", "Username cannot be empty.")
+                        elif new_username != user_name:
                             if new_username in self.users.users:
                                 msgbox.showerror("Error", "New username already exists.")
+                            else:
+                                break
+                        else:
                             break
                     self.users.users[new_username] = self.users.users.pop(user_name)
+                    old_user_name = user_name
                     user_name = new_username  
-                    full_name = dialog.askstring("Edit Full Name", "Enter new full name:", initialvalue=self.users.users[user_name]["full_name"])
-                    new_password = dialog.askstring("Edit Password", "Enter new password (leave blank to keep current):", show='*')
+                    while True:
+                        full_name = dialog.askstring("Edit Full Name", "Enter new full name:", initialvalue=self.users.users[user_name]["full_name"])
+                        if full_name == None:
+                            msgbox.showinfo("Cancelled", "User edit cancelled.")
+                            return
+                        elif full_name == "":
+                            msgbox.showerror("Error", "Full name cannot be empty.")
+                        else:
+                            break
+                    while True:
+                        new_password = dialog.askstring("Edit Password", "Enter new password (leave blank to keep current):", show='*')
+                        if new_password == None:
+                            msgbox.showinfo("Cancelled", "User edit cancelled.")
+                            return
+                        elif new_password == "":
+                            new_password = self.users.users[user_name]["password"]
+                            break
+                        else:
+                            break
                     if full_name:
                         self.users.users[user_name]["full_name"] = full_name
                     if new_password:
                         self.users.users[user_name]["password"] = new_password
+                    for booking_name, booking in self.bookings.bookings.items():
+                        if booking["owner"] == user_name:
+                            self.bookings.bookings[booking_name]["owner"] = user_name
+                    for resource in self.resources.resources.values():
+                        if resource.get("owner") == old_user_name:
+                            resource["owner"] = user_name 
                     self.users.save_users()
                     msgbox.showinfo("Success", f"User '{user_name}' updated successfully.")
                     break
@@ -132,48 +195,60 @@ class UserPage(ttk.Frame):
     def delete_user(self):
         while True:
             user_name = dialog.askstring("Delete User", "Enter username to be deleted:")
-            if user_name in self.users.users:
-                password = dialog.askstring("Login", "Enter password to delete user:", show='*')
-                if password == self.users.users[user_name]["password"]:
-                    confirm = msgbox.askyesno("Confirm Delete", f"Are you sure you want to delete user '{user_name}'?")
-                    if confirm:
-                        del self.users.users[user_name]
-                        self.users.save_users()
-                        msgbox.showinfo("Success", f"User '{user_name}' deleted successfully.")
-                        # Remove user's bookings and resources
-                        for resource in self.resources.resources.values():
-                            if resource.get("owner") == user_name:
-                                replace_resource = dialog.askyesno("Resource Ownership", f"User '{user_name}' owns a resource. Do you want to transfer ownership to another user?")
-                                if replace_resource:
-                                    new_owner = dialog.askstring("New Owner", "Enter new owner's username:")
-                                    if new_owner in self.users.users:
-                                        resource["owner"] = new_owner
-                                        self.resources.save_resources()
-                                        msgbox.showinfo("Success", f"Resource ownership transferred to '{new_owner}'.")
-                                    else:
-                                        msgbox.showerror("Error", "New owner does not exist.")
-                                else:
-                                    resource["owner"] = None
-                                    self.resources.save_resources()
-                        for booking in list(self.bookings.bookings.values()):
-                            if booking["owner"] == user_name:
-                                resource_name = self.bookings.bookings[booking_name]["resource"]
-                                start_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["start_date"], "%Y-%m-%d").date()
-                            end_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["end_date"], "%Y-%m-%d").date()
-                            days_booked = [(start_date + datetime.timedelta(days=i)).isoformat()
-                                for i in range((end_date - start_date).days + 1)]
-                            self.resources.resources[resource_name]["days_booked"] = [
-                                d for d in self.resources.resources[resource_name]["days_booked"]
-                                if d not in days_booked
-                            ]
-                            self.resources.save_resources()
-                        break
-                    else:
+            if user_name == None:
+                msgbox.showinfo("Cancelled", "User deletion cancelled.")
+                return
+            elif user_name == "":
+                msgbox.showerror("Error", "Username cannot be empty.")
+            elif user_name in self.users.users:
+                while True:
+                    password = dialog.askstring("Login", "Enter password to delete user:", show='*')
+                    if password == None:
                         msgbox.showinfo("Cancelled", "User deletion cancelled.")
+                        return
+                    elif password == "":
+                        msgbox.showerror("Error", "Password cannot be empty.")
+                    elif password == self.users.users[user_name]["password"]:
+                        confirm = msgbox.askyesno("Confirm Delete", f"Are you sure you want to delete user '{user_name}'?")
+                        if confirm:
+                            del self.users.users[user_name]
+                            self.users.save_users()
+                            msgbox.showinfo("Success", f"User '{user_name}' deleted successfully.")
+                            # Remove user's bookings and resources
+                            for resource in self.resources.resources.values():
+                                if resource.get("owner") == user_name:
+                                    replace_resource = dialog.askyesno("Resource Ownership", f"User '{user_name}' owns a resource. Do you want to transfer ownership to another user?")
+                                    if replace_resource:
+                                        new_owner = dialog.askstring("New Owner", "Enter new owner's username:")
+                                        if new_owner in self.users.users:
+                                            resource["owner"] = new_owner
+                                            self.resources.save_resources()
+                                            msgbox.showinfo("Success", f"Resource ownership transferred to '{new_owner}'.")
+                                        else:
+                                            msgbox.showerror("Error", "New owner does not exist.")
+                                    else:
+                                        resource["owner"] = None
+                                        self.resources.save_resources()
+                            for booking in list(self.bookings.bookings.values()):
+                                booking_name = self.bookings.bookings[booking]
+                                if booking["owner"] == user_name:
+                                    resource_name = self.bookings.bookings[booking_name]["resource"]
+                                    start_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["start_date"], "%Y-%m-%d").date()
+                                end_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["end_date"], "%Y-%m-%d").date()
+                                days_booked = [(start_date + datetime.timedelta(days=i)).isoformat()
+                                    for i in range((end_date - start_date).days + 1)]
+                                self.resources.resources[resource_name]["days_booked"] = [
+                                    d for d in self.resources.resources[resource_name]["days_booked"]
+                                    if d not in days_booked
+                                ]
+                                self.resources.save_resources()
+                            break
+                        else:
+                            msgbox.showinfo("Cancelled", "User deletion cancelled.")
+                            break
+                    else:
+                        msgbox.showerror("Error", "Incorrect password.")
                         break
-                else:
-                    msgbox.showerror("Error", "Incorrect password.")
-                    break
             else:
                 msgbox.showerror("Error", "User does not exist.")    
     
@@ -193,8 +268,21 @@ class ResourcePage(ttk.Frame):
     def create_resource(self):
         while True:
             resource_name = dialog.askstring("Create Resource", "Enter resource name:")
-            if resource_name not in self.resources.resources:
-                description = dialog.askstring("Resource Description", "Enter resource description:")            
+            if resource_name == None:
+                msgbox.showinfo("Cancelled", "Resource creation cancelled.")
+                return
+            elif resource_name == "":
+                msgbox.showerror("Error", "Resource name cannot be empty.")
+            elif resource_name not in self.resources.resources:
+                while True:
+                    description = dialog.askstring("Resource Description", "Enter resource description:") 
+                    if description == None:
+                        msgbox.showinfo("Cancelled", "Resource creation cancelled.")
+                        return
+                    elif description == "":
+                        msgbox.showerror("Error", "Description cannot be empty.")
+                    else:
+                        break           
                 is_available = msgbox.askyesno("Availability", "Is the resource available?:")
                 if is_available:
                     availability = True
@@ -204,7 +292,12 @@ class ResourcePage(ttk.Frame):
                 while True:
                     if is_owned:
                         owner_name = dialog.askstring("Owner Name", "Enter owner's username:")
-                        if owner_name in self.users.users:
+                        if owner_name == None:
+                            msgbox.showinfo("Cancelled", "Resource creation cancelled.")
+                            return
+                        elif owner_name == "":
+                            msgbox.showerror("Error", "Owner name cannot be empty.")
+                        elif owner_name in self.users.users:
                             break
                         else:
                             msgbox.showerror("Error", "Owner does not exist. Please enter a valid username.")
@@ -231,17 +324,36 @@ class ResourcePage(ttk.Frame):
     def edit_resource(self):
         while True:    
             resource_name = dialog.askstring("Edit Resource", "Enter resource name to edit:")
-            if resource_name in self.resources.resources:
+            if resource_name == None:
+                msgbox.showinfo("Cancelled", "Resource edit cancelled.")
+                return
+            elif resource_name == "":
+                msgbox.showerror("Error", "Resource name cannot be empty.")
+            elif resource_name in self.resources.resources:
                 if "owner" in self.resources.resources[resource_name] == None:
                     while True:    
                         new_resource_name = dialog.askstring("Edit Resource Name", "Enter new resource name:", initialvalue=resource_name)
-                        if new_resource_name != resource_name:
+                        if new_resource_name == None:
+                            msgbox.showinfo("Cancelled", "Resource edit cancelled.")
+                            return
+                        elif new_resource_name == "":
+                            msgbox.showerror("Error", "Resource name cannot be empty.")
+                        elif new_resource_name != resource_name:
                             if new_resource_name in self.resources.resources:
                                 msgbox.showerror("Error", "Resource name already exists.")
                             else:
+                                old_resource_name = resource_name
                                 resource_name = new_resource_name
                                 break
-                    description = dialog.askstring("Resource Description", "Enter new resource description:", initialvalue=self.resources.resources[resource_name]["description"])
+                    while True:
+                        description = dialog.askstring("Resource Description", "Enter new resource description:", initialvalue=self.resources.resources[resource_name]["description"])
+                        if description == None:
+                            msgbox.showinfo("Cancelled", "Resource edit cancelled.")
+                            return
+                        elif description == "":
+                            msgbox.showerror("Error", "Description cannot be empty.")
+                        else:
+                            break
                     is_available = msgbox.askyesno("Availability", "Is the resource available?:")
                     if is_available:
                         availability = True
@@ -253,7 +365,12 @@ class ResourcePage(ttk.Frame):
                         if is_owned:
                             while True:
                                 owner_name = dialog.askstring("Owner Name", "Enter owner's username:", initialvalue=owner)
-                                if owner_name in self.users.users:
+                                if owner_name == None:
+                                    msgbox.showinfo("Cancelled", "Resource edit cancelled.")
+                                    return
+                                elif owner_name == "":
+                                    msgbox.showerror("Error", "Owner name cannot be empty.")
+                                elif owner_name in self.users.users:
                                     break
                                 else:
                                     msgbox.showerror("Error", "Owner does not exist. Please enter a valid username.")     
@@ -264,26 +381,52 @@ class ResourcePage(ttk.Frame):
                         "available": availability,
                         "owner": owner_name,
                     }
+                    for booking_name, booking in list(self.bookings.bookings.items()):
+                        if booking["resource"] == old_resource_name:
+                            self.bookings.bookings[booking_name]["resource"] = resource_name
                     msgbox.showinfo("Success", f"Resource '{resource_name}' edited successfully.")
                     self.resources.save_resources()
                     break
                 else:
                     owner = self.resources.resources[resource_name]["owner"]
-                    password = dialog.askstring("Login", "Enter password to edit resource:", show='*')
-                    if password == self.users.users[owner]["password"]:
-                        pass
-                    else:
-                        msgbox.showerror("Error", "Incorrect password.")
-                        break
+                    while True:
+                        password = dialog.askstring("Login", "Enter password to edit resource:", show='*')
+                        if password == None:
+                            msgbox.showinfo("Cancelled", "Resource edit cancelled.")
+                            return
+                        elif password == "":
+                            msgbox.showerror("Error", "Password cannot be empty.")
+                        elif password == self.users.users[owner]["password"]:
+                            break
+                        else:
+                            msgbox.showerror("Error", "Incorrect password.")
+                            return
                     while True:    
                         new_resource_name = dialog.askstring("Edit Resource Name", "Enter new resource name:", initialvalue=resource_name)
-                        if new_resource_name != resource_name:
+                        if new_resource_name == None:
+                            msgbox.showinfo("Cancelled", "Resource edit cancelled.")
+                            return
+                        elif new_resource_name == "":
+                            msgbox.showerror("Error", "Resource name cannot be empty.")
+                        elif new_resource_name != resource_name:
                             if new_resource_name in self.resources.resources:
                                 msgbox.showerror("Error", "Resource name already exists.")
                             else:
+                                old_resource_name = resource_name
                                 resource_name = new_resource_name
                                 break
-                    description = dialog.askstring("Resource Description", "Enter new resource description:", initialvalue=self.resources.resources[resource_name]["description"])
+                        else:
+                            old_resource_name = resource_name
+                            break
+                    while True:
+                        description = dialog.askstring("Resource Description", "Enter new resource description:", initialvalue=self.resources.resources[resource_name]["description"])
+                        if description == None:
+                            msgbox.showinfo("Cancelled", "Resource edit cancelled.")
+                            return
+                        elif description == "":
+                            msgbox.showerror("Error", "Description cannot be empty.")
+                        else:
+                            break
                     is_available = msgbox.askyesno("Availability", "Is the resource available?:")
                     if is_available:
                         availability = True
@@ -295,7 +438,12 @@ class ResourcePage(ttk.Frame):
                         if is_owned:
                             while True:
                                 owner_name = dialog.askstring("Owner Name", "Enter owner's username:", initialvalue=owner)
-                                if owner_name in self.users.users:
+                                if owner_name == None:
+                                    msgbox.showinfo("Cancelled", "Resource edit cancelled.")
+                                    return
+                                elif owner_name == "":
+                                    msgbox.showerror("Error", "Owner name cannot be empty.")
+                                elif owner_name in self.users.users:
                                     break
                                 else:
                                     msgbox.showerror("Error", "Owner does not exist. Please enter a valid username.")     
@@ -307,6 +455,9 @@ class ResourcePage(ttk.Frame):
                         "owner": owner_name,
                         "days_booked": self.resources.resources[resource_name].get("days_booked", []),
                     }
+                    for booking_name, booking in list(self.bookings.bookings.items()):
+                        if booking["resource"] == old_resource_name:
+                            self.bookings.bookings[booking_name]["resource"] = resource_name
                     msgbox.showinfo("Success", f"Resource '{resource_name}' edited successfully.")
                     self.resources.save_resources()
                     break
@@ -316,7 +467,12 @@ class ResourcePage(ttk.Frame):
     def delete_resource(self):
         while True:
             resource_name = dialog.askstring("Delete Resource", "Enter resource name to delete:")
-            if resource_name in self.resources.resources:
+            if resource_name == None:
+                msgbox.showinfo("Cancelled", "Resource deletion cancelled.")
+                return
+            elif resource_name == "":
+                msgbox.showerror("Error", "Resource name cannot be empty.")
+            elif resource_name in self.resources.resources:
                 if "owner" in self.resources.resources[resource_name] == None:
                     confirm = msgbox.askyesno("Confirm Delete", f"Are you sure you want to delete resource '{resource_name}'?")
                     if confirm:
@@ -334,12 +490,18 @@ class ResourcePage(ttk.Frame):
                         break
                 else:
                     owner = self.resources.resources[resource_name]["owner"]
-                    password = dialog.askstring("Login", "Enter password to edit resource:", show='*')
-                    if password == self.users.users[owner]["password"]:
-                        pass
-                    else:
-                        msgbox.showerror("Error", "Incorrect password.")
-                        break
+                    while True:
+                        password = dialog.askstring("Login", "Enter password to edit resource:", show='*')
+                        if password == None:
+                            msgbox.showinfo("Cancelled", "Resource deletion cancelled.")
+                            return
+                        elif password == "":
+                            msgbox.showerror("Error", "Password cannot be empty.")
+                        elif password == self.users.users[owner]["password"]:
+                            break
+                        else:
+                            msgbox.showerror("Error", "Incorrect password.")
+                            return
                     confirm = msgbox.askyesno("Confirm Delete", f"Are you sure you want to delete resource '{resource_name}'?")
                     if confirm:
                         del self.resources.resources[resource_name]
@@ -368,21 +530,43 @@ class BookerPage(ttk.Frame):
     def create_booking(self):
         while True:
             booking_name = dialog.askstring("Create Booking", "Enter booking name:")
-            if booking_name not in self.bookings.bookings:
+            if booking_name == None:
+                msgbox.showinfo("Cancelled", "Booking creation cancelled.")
+                return
+            elif booking_name == "":
+                msgbox.showerror("Error", "Booking name cannot be empty.")
+            elif booking_name not in self.bookings.bookings:
                 while True:
                     user_name = dialog.askstring("User Name", "Enter username for booking:")
-                    if user_name in self.users.users:
-                        password = dialog.askstring("Login", "Enter password to book resource:", show='*')
-                        if password == self.users.users[user_name]["password"]:
-                            break
-                        else:
-                            msgbox.showerror("Error", "Incorrect password.")
-                            return
+                    if user_name == None:
+                        msgbox.showinfo("Cancelled", "Booking creation cancelled.")
+                        return
+                    elif user_name == "":
+                        msgbox.showerror("Error", "Username cannot be empty.")
+                    elif user_name in self.users.users:
+                        while True:
+                            password = dialog.askstring("Login", "Enter password to book resource:", show='*')
+                            if password == None:
+                                msgbox.showinfo("Cancelled", "Booking creation cancelled.")
+                                return
+                            elif password == "":
+                                msgbox.showerror("Error", "Password cannot be empty.")
+                            elif password == self.users.users[user_name]["password"]:
+                                break
+                            else:
+                                msgbox.showerror("Error", "Incorrect password.")
+                                return
+                        break
                     else:
                         msgbox.showerror("Error", "User does not exist. Please enter a valid username.")
                 while True:            
                     resource_name = dialog.askstring("Resource Name", "Enter resource name to book:")
-                    if resource_name in self.resources.resources:
+                    if resource_name == None:
+                        msgbox.showinfo("Cancelled", "Booking creation cancelled.")
+                        return
+                    elif resource_name == "":
+                        msgbox.showerror("Error", "Resource name cannot be empty.")
+                    elif resource_name in self.resources.resources:
                         if self.resources.resources[resource_name]["available"]:
                             break
                         else:
@@ -391,40 +575,52 @@ class BookerPage(ttk.Frame):
                         msgbox.showerror("Error", "Resource does not exist. Please enter a valid resource name.")
                 while True:
                     booking_start_date = dialog.askstring("Booking Date", "Enter booking date (YYYY-MM-DD):")
-                    try:
-                        booking_start_date = datetime.datetime.strptime(booking_start_date, "%Y-%m-%d").date()
-                        if booking_start_date < datetime.date.today():
-                            msgbox.showerror("Error", "Booking date cannot be in the past.")
-                        else:
-                            booked_dates = [
-                                datetime.datetime.strptime(d, "%Y-%m-%d").date()
-                                if isinstance(d, str) else d
-                                for d in self.resources.resources[resource_name]["days_booked"]
-                            ]
-                            if booking_start_date in booked_dates:
-                                msgbox.showerror("Error", "Resource is already booked for this date.")
-                            else:  
-                                break
-                    except ValueError:
-                        msgbox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
+                    if booking_start_date == None:
+                        msgbox.showinfo("Cancelled", "Booking creation cancelled.")
+                        return
+                    elif booking_start_date == "":
+                        msgbox.showerror("Error", "Booking date cannot be empty.")
+                    else:
+                        try:
+                            booking_start_date = datetime.datetime.strptime(booking_start_date, "%Y-%m-%d").date()
+                            if booking_start_date < datetime.date.today():
+                                msgbox.showerror("Error", "Booking date cannot be in the past.")
+                            else:
+                                booked_dates = [
+                                    datetime.datetime.strptime(d, "%Y-%m-%d").date()
+                                    if isinstance(d, str) else d
+                                    for d in self.resources.resources[resource_name]["days_booked"]
+                                ]
+                                if booking_start_date in booked_dates:
+                                    msgbox.showerror("Error", "Resource is already booked for this date.")
+                                else:  
+                                    break
+                        except ValueError:
+                            msgbox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
                 while True:
                     booking_end_date = dialog.askstring("Booking Date", "Enter booking end date (YYYY-MM-DD):")
-                    try:
-                        booking_end_date = datetime.datetime.strptime(booking_end_date, "%Y-%m-%d").date()
-                        if booking_end_date <= booking_start_date:
-                            msgbox.showerror("Error", "End date must be after start date.")
-                        else:
-                            booked_dates = [
-                                datetime.datetime.strptime(d, "%Y-%m-%d").date()
-                                if isinstance(d, str) else d
-                                for d in self.resources.resources[resource_name]["days_booked"]
-                            ]
-                            if booking_end_date in booked_dates:
-                                msgbox.showerror("Error", "Resource is already booked for this date.")
+                    if booking_end_date == None:
+                        msgbox.showinfo("Cancelled", "Booking creation cancelled.")
+                        return
+                    elif booking_end_date == "":
+                        msgbox.showerror("Error", "Booking end date cannot be empty.")
+                    else:
+                        try:
+                            booking_end_date = datetime.datetime.strptime(booking_end_date, "%Y-%m-%d").date()
+                            if booking_end_date <= booking_start_date:
+                                msgbox.showerror("Error", "End date must be after start date.")
                             else:
-                                break
-                    except ValueError:
-                        msgbox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
+                                booked_dates = [
+                                    datetime.datetime.strptime(d, "%Y-%m-%d").date()
+                                    if isinstance(d, str) else d
+                                    for d in self.resources.resources[resource_name]["days_booked"]
+                                ]
+                                if booking_end_date in booked_dates:
+                                    msgbox.showerror("Error", "Resource is already booked for this date.")
+                                else:
+                                    break
+                        except ValueError:
+                            msgbox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
                 days_booked = [(booking_start_date + datetime.timedelta(days=i)).isoformat()
                     for i in range((booking_end_date - booking_start_date).days + 1)]
                 self.resources.resources[resource_name]["days_booked"].extend(days_booked)
@@ -444,117 +640,159 @@ class BookerPage(ttk.Frame):
     def edit_booking(self):
         while True:
             booking_name = dialog.askstring("Edit Booking", "Enter booking name to edit:")
-            if booking_name in self.bookings.bookings:
+            if booking_name == None:
+                msgbox.showinfo("Cancelled", "Booking edit cancelled.")
+                return
+            elif booking_name == "":
+                msgbox.showerror("Error", "Booking name cannot be empty.")
+            elif booking_name in self.bookings.bookings:
                 user_name = self.bookings.bookings[booking_name]["owner"]
-                password = dialog.askstring("Login", "Enter password to edit booking:", show='*')
-                if password == self.users.users[user_name]["password"]:
-                    while True:
-                        new_booking_name = dialog.askstring("Edit Booking Name", "Enter new booking name:", initialvalue=booking_name)
-                        if new_booking_name != booking_name:
-                            if new_booking_name in self.bookings.bookings:
-                                msgbox.showerror("Error", "Booking name already exists.")
-                            else:
-                                booking_name = new_booking_name
-                                break
-                    resource_name = self.bookings.bookings[booking_name]["resource"]
-                    while True:
-                        new_resource_name = dialog.askstring("Resource Name", "Enter new resource name:", initialvalue=resource_name)
-                        if new_resource_name in self.resources.resources:
-                            if self.resources.resources[new_resource_name]["available"]:
-                                resource_name = new_resource_name
-                                break
-                            else:
-                                msgbox.showerror("Error", "Resource is not available for booking.")
-                        else:
-                            msgbox.showerror("Error", "Resource does not exist. Please enter a valid resource name.")
-                    while True:
-                        booking_start_date = dialog.askstring("Booking Date", "Enter new booking start date (YYYY-MM-DD):")
-                        try:
-                            booking_start_date = datetime.datetime.strptime(booking_start_date, "%Y-%m-%d").date()
-                            if booking_start_date < datetime.date.today():
-                                msgbox.showerror("Error", "Booking date cannot be in the past.")
-                            else:
-                                booked_dates = [
-                                    datetime.datetime.strptime(d, "%Y-%m-%d").date()
-                                    if isinstance(d, str) else d
-                                    for d in self.resources.resources[resource_name]["days_booked"]
-                                ]
-                                if booking_start_date in booked_dates:
-                                    msgbox.showerror("Error", "Resource is already booked for this date.")
-                                else:  
-                                    break
-                        except ValueError:
-                            msgbox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
-                    while True:
-                        booking_end_date = dialog.askstring("Booking Date", "Enter new booking end date (YYYY-MM-DD):")
-                        try:
-                            booking_end_date = datetime.datetime.strptime(booking_end_date, "%Y-%m-%d").date()
-                            if booking_end_date <= booking_start_date:
-                                msgbox.showerror("Error", "End date must be after start date.")
-                            else:
-                                booked_dates = [
-                                    datetime.datetime.strptime(d, "%Y-%m-%d").date()
-                                    if isinstance(d, str) else d
-                                    for d in self.resources.resources[resource_name]["days_booked"]
-                                ]
-                                if booking_end_date in booked_dates:
-                                    msgbox.showerror("Error", "Resource is already booked for this date.")
+                while True:
+                    password = dialog.askstring("Login", "Enter password to edit booking:", show='*')
+                    if password == None:
+                        msgbox.showinfo("Cancelled", "Booking edit cancelled.")
+                        return
+                    elif password == "":
+                        msgbox.showerror("Error", "Password cannot be empty.")
+                    elif password == self.users.users[user_name]["password"]:
+                        while True:
+                            new_booking_name = dialog.askstring("Edit Booking Name", "Enter new booking name:", initialvalue=booking_name)
+                            if new_booking_name == None:
+                                msgbox.showinfo("Cancelled", "Booking edit cancelled.")
+                                return
+                            elif new_booking_name == "":
+                                msgbox.showerror("Error", "Booking name cannot be empty.")
+                            elif new_booking_name != booking_name:
+                                if new_booking_name in self.bookings.bookings:
+                                    msgbox.showerror("Error", "Booking name already exists.")
                                 else:
+                                    booking_name = new_booking_name
                                     break
-                        except ValueError:
-                            msgbox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
-                    days_booked = [(booking_start_date + datetime.timedelta(days=i)).isoformat()
-                        for i in range((booking_end_date - booking_start_date).days + 1)]
-                    self.resources.resources[resource_name]["days_booked"] = [
-                        d for d in self.resources.resources[resource_name]["days_booked"]
-                        if d not in days_booked
-                    ]
-                    self.resources.resources[resource_name]["days_booked"].extend(days_booked)
-                    self.resources.save_resources() 
-                    self.bookings.bookings[booking_name] = {
-                        "owner": user_name,
-                        "resource": resource_name,
-                        "start_date": booking_start_date.isoformat(),
-                        "end_date": booking_end_date.isoformat(),
-                    }
-                    self.bookings.save_bookings()
-                    msgbox.showinfo("Success", f"Booking '{booking_name}' edited successfully.")
-                    break
-                else:
-                    msgbox.showerror("Error", "Incorrect password.")
-                    break
+                            else:
+                                break
+                        resource_name = self.bookings.bookings[booking_name]["resource"]
+                        while True:
+                            new_resource_name = dialog.askstring("Resource Name", "Enter new resource name:", initialvalue=resource_name)
+                            if new_resource_name in self.resources.resources:
+                                if self.resources.resources[new_resource_name]["available"]:
+                                    resource_name = new_resource_name
+                                    break
+                                else:
+                                    msgbox.showerror("Error", "Resource is not available for booking.")
+                            else:
+                                msgbox.showerror("Error", "Resource does not exist. Please enter a valid resource name.")
+                        while True:
+                            booking_start_date = dialog.askstring("Booking Date", "Enter new booking start date (YYYY-MM-DD):")
+                            if booking_start_date == None:
+                                msgbox.showinfo("Cancelled", "Booking edit cancelled.")
+                                return
+                            elif booking_start_date == "":
+                                msgbox.showerror("Error", "Booking start date cannot be empty.")
+                            else:
+                                try:
+                                    booking_start_date = datetime.datetime.strptime(booking_start_date, "%Y-%m-%d").date()
+                                    if booking_start_date < datetime.date.today():
+                                        msgbox.showerror("Error", "Booking date cannot be in the past.")
+                                    else:
+                                        booked_dates = [
+                                            datetime.datetime.strptime(d, "%Y-%m-%d").date()
+                                            if isinstance(d, str) else d
+                                            for d in self.resources.resources[resource_name]["days_booked"]
+                                        ]
+                                        if booking_start_date in booked_dates:
+                                            msgbox.showerror("Error", "Resource is already booked for this date.")
+                                        else:  
+                                            break
+                                except ValueError:
+                                    msgbox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
+                        while True:
+                            booking_end_date = dialog.askstring("Booking Date", "Enter new booking end date (YYYY-MM-DD):")
+                            if booking_end_date == None:
+                                msgbox.showinfo("Cancelled", "Booking edit cancelled.")
+                                return
+                            elif booking_end_date == "":
+                                msgbox.showerror("Error", "Booking end date cannot be empty.")
+                            else:
+                                try:
+                                    booking_end_date = datetime.datetime.strptime(booking_end_date, "%Y-%m-%d").date()
+                                    if booking_end_date <= booking_start_date:
+                                        msgbox.showerror("Error", "End date must be after start date.")
+                                    else:
+                                        booked_dates = [
+                                            datetime.datetime.strptime(d, "%Y-%m-%d").date()
+                                            if isinstance(d, str) else d
+                                            for d in self.resources.resources[resource_name]["days_booked"]
+                                        ]
+                                        if booking_end_date in booked_dates:
+                                            msgbox.showerror("Error", "Resource is already booked for this date.")
+                                        else:
+                                            break
+                                except ValueError:
+                                    msgbox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
+                        days_booked = [(booking_start_date + datetime.timedelta(days=i)).isoformat()
+                            for i in range((booking_end_date - booking_start_date).days + 1)]
+                        self.resources.resources[resource_name]["days_booked"] = [
+                            d for d in self.resources.resources[resource_name]["days_booked"]
+                            if d not in days_booked
+                        ]
+                        self.resources.resources[resource_name]["days_booked"].extend(days_booked)
+                        self.resources.save_resources() 
+                        self.bookings.bookings[booking_name] = {
+                            "owner": user_name,
+                            "resource": resource_name,
+                            "start_date": booking_start_date.isoformat(),
+                            "end_date": booking_end_date.isoformat(),
+                        }
+                        self.bookings.save_bookings()
+                        msgbox.showinfo("Success", f"Booking '{booking_name}' edited successfully.")
+                        break
+                    else:
+                        msgbox.showerror("Error", "Incorrect password.")
+                        break
             else:
                 msgbox.showerror("Error", "Booking does not exist.")
                   
     def delete_booking(self):
         while True:
             booking_name = dialog.askstring("Delete Booking", "Enter booking name to delete:")
-            if booking_name in self.bookings.bookings:
+            if booking_name == None:
+                msgbox.showinfo("Cancelled", "Booking deletion cancelled.")
+                return
+            elif booking_name == "":
+                msgbox.showerror("Error", "Booking name cannot be empty.")    
+            elif booking_name in self.bookings.bookings:
                 user_name = self.bookings.bookings[booking_name]["owner"]
-                password = dialog.askstring("Login", "Enter password to delete booking:", show='*')
-                if password == self.users.users[user_name]["password"]:
-                    confirm = msgbox.askyesno("Confirm Delete", f"Are you sure you want to delete booking '{booking_name}'?")
-                    if confirm:
-                        resource_name = self.bookings.bookings[booking_name]["resource"]
-                        start_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["start_date"], "%Y-%m-%d").date()
-                        end_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["end_date"], "%Y-%m-%d").date()
-                        days_booked = [(start_date + datetime.timedelta(days=i)).isoformat()
-                            for i in range((end_date - start_date).days + 1)]
-                        self.resources.resources[resource_name]["days_booked"] = [
-                            d for d in self.resources.resources[resource_name]["days_booked"]
-                            if d not in days_booked
-                        ]
-                        self.resources.save_resources()
-                        del self.bookings.bookings[booking_name]
-                        self.bookings.save_bookings()
-                        msgbox.showinfo("Success", f"Booking '{booking_name}' deleted successfully.")
-                        break
-                    else:
+                while True:    
+                    password = dialog.askstring("Login", "Enter password to delete booking:", show='*')
+                    if password == None:
                         msgbox.showinfo("Cancelled", "Booking deletion cancelled.")
+                        return
+                    elif password == "":
+                        msgbox.showerror("Error", "Password cannot be empty.")
+                    elif password == self.users.users[user_name]["password"]:
+                        confirm = msgbox.askyesno("Confirm Delete", f"Are you sure you want to delete booking '{booking_name}'?")
+                        if confirm:
+                            resource_name = self.bookings.bookings[booking_name]["resource"]
+                            start_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["start_date"], "%Y-%m-%d").date()
+                            end_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["end_date"], "%Y-%m-%d").date()
+                            days_booked = [(start_date + datetime.timedelta(days=i)).isoformat()
+                                for i in range((end_date - start_date).days + 1)]
+                            self.resources.resources[resource_name]["days_booked"] = [
+                                d for d in self.resources.resources[resource_name]["days_booked"]
+                                if d not in days_booked
+                            ]
+                            self.resources.save_resources()
+                            del self.bookings.bookings[booking_name]
+                            self.bookings.save_bookings()
+                            msgbox.showinfo("Success", f"Booking '{booking_name}' deleted successfully.")
+                            break
+                        else:
+                            msgbox.showinfo("Cancelled", "Booking deletion cancelled.")
+                            break
+                    else:
+                        msgbox.showerror("Error", "Incorrect password.")
                         break
-                else:
-                    msgbox.showerror("Error", "Incorrect password.")
-                    break
+                break
             else:
                 msgbox.showerror("Error", "Booking does not exist.")
         
@@ -593,5 +831,6 @@ class ViewerPage(ttk.Frame):
         else:
             msgbox.showinfo("Bookings", "No bookings found.")
         
-MyApp = App()
-MyApp.mainloop()
+if __name__ == "__main__":
+    MyApp = App()
+    MyApp.mainloop()
