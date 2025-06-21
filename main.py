@@ -78,7 +78,9 @@ class UserPage(ttk.Frame):
     def __init__(self, parent, main_app):
         super().__init__(parent, padding=10)
         self.main_app = main_app
-        self.users = get_users() 
+        self.users = get_users()
+        self.resources = get_resources()
+        self.bookings = get_bookings()
         
         ttk.Button(self, text="Create New User", command=self.create_user).pack(pady=5)
         ttk.Button(self, text="Edit User Profile", command=self.edit_user).pack(pady=5)
@@ -138,6 +140,33 @@ class UserPage(ttk.Frame):
                         del self.users.users[user_name]
                         self.users.save_users()
                         msgbox.showinfo("Success", f"User '{user_name}' deleted successfully.")
+                        # Remove user's bookings and resources
+                        for resource in self.resources.resources.values():
+                            if resource.get("owner") == user_name:
+                                replace_resource = dialog.askyesno("Resource Ownership", f"User '{user_name}' owns a resource. Do you want to transfer ownership to another user?")
+                                if replace_resource:
+                                    new_owner = dialog.askstring("New Owner", "Enter new owner's username:")
+                                    if new_owner in self.users.users:
+                                        resource["owner"] = new_owner
+                                        self.resources.save_resources()
+                                        msgbox.showinfo("Success", f"Resource ownership transferred to '{new_owner}'.")
+                                    else:
+                                        msgbox.showerror("Error", "New owner does not exist.")
+                                else:
+                                    resource["owner"] = None
+                                    self.resources.save_resources()
+                        for booking in list(self.bookings.bookings.values()):
+                            if booking["owner"] == user_name:
+                                resource_name = self.bookings.bookings[booking_name]["resource"]
+                                start_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["start_date"], "%Y-%m-%d").date()
+                            end_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["end_date"], "%Y-%m-%d").date()
+                            days_booked = [(start_date + datetime.timedelta(days=i)).isoformat()
+                                for i in range((end_date - start_date).days + 1)]
+                            self.resources.resources[resource_name]["days_booked"] = [
+                                d for d in self.resources.resources[resource_name]["days_booked"]
+                                if d not in days_booked
+                            ]
+                            self.resources.save_resources()
                         break
                     else:
                         msgbox.showinfo("Cancelled", "User deletion cancelled.")
@@ -155,6 +184,7 @@ class ResourcePage(ttk.Frame):
         self.main_app = main_app
         self.users = get_users() 
         self.resources = get_resources()
+        self.bookings = get_bookings()
         
         ttk.Button(self, text="Create Resource", command=self.create_resource).pack(pady=5)
         ttk.Button(self, text="Edit Resource", command=self.edit_resource).pack(pady=5)
@@ -292,6 +322,11 @@ class ResourcePage(ttk.Frame):
                     if confirm:
                         del self.resources.resources[resource_name]
                         self.resources.save_resources()
+                        # Remove resource from bookings
+                        for booking_name, booking in list(self.bookings.bookings.items()):
+                            if booking["resource"] == resource_name:
+                                del self.bookings.bookings[booking_name]
+                        self.bookings.save_bookings()
                         msgbox.showinfo("Success", f"Resource '{resource_name}' deleted successfully.")
                         break
                     else:
@@ -525,12 +560,17 @@ class BookerPage(ttk.Frame):
         
         
 class ViewerPage(ttk.Frame):
-    title = "Resource/Booking Viewer"
+    title = "Item Viewer"
     def __init__(self, parent, main_app):
         super().__init__(parent, padding=10)
         self.main_app = main_app 
-
+        self.users = get_users()
+        self.resources = get_resources()
+        self.bookings = get_bookings()
+        
         ttk.Button(self, text="View users", command=self.view_users).pack(pady=5)
+        ttk.Button(self, text="View resources", command=self.view_resources).pack(pady=5)
+        ttk.Button(self, text="View bookings", command=self.view_resources).pack(pady=5)
     
     def view_users(self):
         user_list = "\n".join(self.main_app.pages['UserPage'].users.users.keys())
@@ -538,6 +578,20 @@ class ViewerPage(ttk.Frame):
             msgbox.showinfo("Users", f"Current Users:\n{user_list}")
         else:
             msgbox.showinfo("Users", "No users found.")
+    
+    def view_resources(self):
+        resource_list = "\n".join(self.main_app.pages['ResourcePage'].resources.resources.keys())
+        if resource_list:
+            msgbox.showinfo("Resources", f"Current Resources:\n{resource_list}")
+        else:
+            msgbox.showinfo("Resources", "No resources found.")
+    
+    def view_bookings(self):
+        booking_list = "\n".join(self.main_app.pages['BookerPage'].bookings.bookings.keys())
+        if booking_list:
+            msgbox.showinfo("Bookings", f"Current Bookings:\n{booking_list}")
+        else:
+            msgbox.showinfo("Bookings", "No bookings found.")
         
 MyApp = App()
 MyApp.mainloop()
