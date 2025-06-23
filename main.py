@@ -60,7 +60,7 @@ class get_bookings:
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("My Application")
+        self.title("Resource Management System")
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
 
@@ -163,8 +163,6 @@ class UserPage(ttk.Frame):
                             if full_name == None:
                                 msgbox.showinfo("Cancelled", "User edit cancelled.")
                                 return
-                            elif full_name == "":
-                                msgbox.showerror("Error", "Full name cannot be empty.")
                             else:
                                 break
                         while True:
@@ -183,8 +181,8 @@ class UserPage(ttk.Frame):
                             self.users.users[user_name]["password"] = new_password
                         # Update bookings and resources with new username
                         for booking_name, booking in self.bookings.bookings.items():
-                            if booking["owner"] == user_name:
-                                self.bookings.bookings[booking_name]["owner"] = user_name
+                            if booking["user"] == user_name:
+                                self.bookings.bookings[booking_name]["user"] = user_name
                         for resource in self.resources.resources.values():
                             if resource.get("owner") == old_user_name:
                                 resource["owner"] = user_name 
@@ -197,7 +195,7 @@ class UserPage(ttk.Frame):
             else:
                 msgbox.showerror("Error", "User does not exist.")
 
-   def delete_user(self):
+    def delete_user(self):
         self.users.load_users()
         self.resources.load_resources()
         self.bookings.load_bookings()
@@ -219,45 +217,56 @@ class UserPage(ttk.Frame):
                     elif password == self.users.users[username]["password"]:
                         confirm = msgbox.askyesno("Confirm Delete", f"Are you sure you want to delete user '{username}'?")
                         if confirm:
+                            #Tranfer out user's resources
+                            for resource_name, resource in self.resources.resources.items():
+                                if resource.get("owner") == username:
+                                    while True:
+                                        replace_resource = msgbox.askyesno("Resource Ownership", f"User '{username}' owns resource '{resource_name}'. Do you want to transfer ownership to another user?")
+                                        if replace_resource:
+                                            new_owner = dialog.askstring("New Owner", "Enter new owner's username:")
+                                            if new_owner is None:
+                                                msgbox.showinfo("Cancelled", "Resource ownership transfer cancelled. Resource will free for all users.")
+                                                resource["owner"] = None
+                                                break
+                                            elif new_owner == "":
+                                                msgbox.showerror("Error", "New owner name cannot be empty.")
+                                            elif new_owner == username:
+                                                msgbox.showerror("Error", "You cannot transfer ownership to yourself.")
+                                            elif new_owner in self.users.users:
+                                                resource["owner"] = new_owner
+                                                msgbox.showinfo("Success", f"Resource ownership transferred to '{new_owner}'.")
+                                                break
+                                            else:
+                                                msgbox.showerror("Error", "New owner does not exist.")
+                                        else:
+                                            resource["owner"] = None
+                                            msgbox.showinfo("Success", f"Resource '{resource_name}' is now available for all users.")
+                                            break
+                            #Removes user's bookings and updates resources
+                            for booking_name, booking in list(self.bookings.bookings.items()):
+                                if booking["user"] == username:
+                                    resource_name = booking["resource"]
+                                    start_date = datetime.datetime.strptime(booking["start_date"], "%Y-%m-%d").date()
+                                    end_date = datetime.datetime.strptime(booking["end_date"], "%Y-%m-%d").date()
+                                    days_booked = [(start_date + datetime.timedelta(days=i)).isoformat()
+                                        for i in range((end_date - start_date).days + 1)]
+                                    self.resources.resources[resource_name]["days_booked"] = [
+                                        d for d in self.resources.resources[resource_name]["days_booked"]
+                                        if d not in days_booked
+                                    ]
+                                    del self.bookings.bookings[booking]
+                            self.resources.save_resources()
+                            self.bookings.save_bookings()
                             del self.users.users[username]
                             self.users.save_users()
                             msgbox.showinfo("Success", f"User '{username}' deleted successfully.")
-                            #Tranfer out user's resources
-                            for resource in self.resources.resources.values():
-                                if resource.get("owner") == username:
-                                    replace_resource = dialog.askyesno("Resource Ownership", f"User '{username}' owns resource '{resource}'. Do you want to transfer ownership to another user?")
-                                    if replace_resource:
-                                        new_owner = dialog.askstring("New Owner", "Enter new owner's username:")
-                                        if new_owner in self.users.users:
-                                            resource["owner"] = new_owner
-                                            self.resources.save_resources()
-                                            msgbox.showinfo("Success", f"Resource ownership transferred to '{new_owner}'.")
-                                        else:
-                                            msgbox.showerror("Error", "New owner does not exist.")
-                                    else:
-                                        resource["owner"] = None
-                                        self.resources.save_resources()
-                            #Removes user's bookings and updates resources
-                            for booking in list(self.bookings.bookings.values()):
-                                booking_name = self.bookings.bookings[booking]
-                                if booking["owner"] == username:
-                                    resource_name = self.bookings.bookings[booking_name]["resource"]
-                                    start_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["start_date"], "%Y-%m-%d").date()
-                                end_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["end_date"], "%Y-%m-%d").date()
-                                days_booked = [(start_date + datetime.timedelta(days=i)).isoformat()
-                                    for i in range((end_date - start_date).days + 1)]
-                                self.resources.resources[resource_name]["days_booked"] = [
-                                    d for d in self.resources.resources[resource_name]["days_booked"]
-                                    if d not in days_booked
-                                ]
-                                self.resources.save_resources()
-                            break
+                            return
                         else:
                             msgbox.showinfo("Cancelled", "User deletion cancelled.")
-                            break
+                            return
                     else:
                         msgbox.showerror("Error", "Incorrect password.")
-                        break
+                        return
             else:
                 msgbox.showerror("Error", "User does not exist.")
 
@@ -298,8 +307,8 @@ class ResourcePage(ttk.Frame):
                     availability = True
                 else:
                     availability = False
-                is_owned = msgbox.askyesno("Ownership", "Is the resource owned by someone?:")
                 while True:
+                    is_owned = msgbox.askyesno("Ownership", "Is the resource owned by someone?:")
                     if is_owned:
                         owner_name = dialog.askstring("Owner Name", "Enter owner's username:")
                         if owner_name == None:
@@ -370,20 +379,29 @@ class ResourcePage(ttk.Frame):
                     else:
                         availability = False
                     change_owner = msgbox.askyesno("Change Owner", "Do you want to change the owner of this resource?")
-                    if change_owner:    
-                        is_owned = msgbox.askyesno("Ownership", "Is the resource owned by someone?:")
-                        if is_owned:
-                            while True:
-                                owner_name = dialog.askstring("Owner Name", "Enter owner's username:", initialvalue=owner)
-                                if owner_name == None:
-                                    msgbox.showinfo("Cancelled", "Resource edit cancelled.")
-                                    return
-                                elif owner_name == "":
-                                    msgbox.showerror("Error", "Owner name cannot be empty.")
-                                elif owner_name in self.users.users:
+                    if change_owner:
+                        while True:
+                            is_owned = msgbox.askyesno("Ownership", "Is the resource owned by someone?:")
+                            if is_owned:
+                                while True:
+                                    owner_name = dialog.askstring("Owner Name", "Enter owner's username:", initialvalue=owner)
+                                    if owner_name == None:
+                                        msgbox.showinfo("Cancelled", "Resource edit cancelled.")
+                                        return
+                                    elif owner_name == "":
+                                        msgbox.showerror("Error", "Owner name cannot be empty.")
+                                    elif owner_name in self.users.users:
+                                        break
+                                    else:
+                                        msgbox.showerror("Error", "Owner does not exist. Please enter a valid username.")
+                                break
+                            else:
+                                confirm = msgbox.askyesno("Ownership", "Resource will be editable by anyone. Continue?")
+                                if confirm:
+                                    owner_name = None
                                     break
                                 else:
-                                    msgbox.showerror("Error", "Owner does not exist. Please enter a valid username.")
+                                    msgbox.showinfo("Understood", "Understood.")
                     else:
                         owner_name = self.resources.resources[resource_name]["owner"]
                     self.resources.resources[resource_name] = {
@@ -644,7 +662,7 @@ class BookerPage(ttk.Frame):
                                     break
                         except ValueError:
                             msgbox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
-                #Create booking and update resource availability
+                #Update resource availability
                 days_booked = [(booking_start_date + datetime.timedelta(days=i)).isoformat()
                     for i in range((booking_end_date - booking_start_date).days + 1)]
                 self.resources.resources[resource_name]["days_booked"].extend(days_booked)
@@ -708,9 +726,15 @@ class BookerPage(ttk.Frame):
                                     msgbox.showerror("Error", "Resource is not available for booking.")
                             else:
                                 msgbox.showerror("Error", "Resource does not exist. Please enter a valid resource name.")
+                        old_start_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["start_date"], "%Y-%m-%d").date()
+                        old_end_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["end_date"], "%Y-%m-%d").date()
+                        booking_range = [
+                            (old_start_date + datetime.timedelta(days=i)).isoformat()
+                            for i in range((old_end_date - old_start_date).days + 1)
+                        ]
                         while True:
                             booking_start_date = dialog.askstring("Booking Date", "Enter new booking start date (YYYY-MM-DD):")
-                            if booking_start_date == None:
+                            if booking_start_date is None:
                                 msgbox.showinfo("Cancelled", "Booking edit cancelled.")
                                 return
                             elif booking_start_date == "":
@@ -720,7 +744,11 @@ class BookerPage(ttk.Frame):
                                     booking_start_date = datetime.datetime.strptime(booking_start_date, "%Y-%m-%d").date()
                                     if booking_start_date < datetime.date.today():
                                         msgbox.showerror("Error", "Booking date cannot be in the past.")
+                                    elif booking_start_date in booking_range:
+                                        #Allow booking within old range
+                                        break
                                     else:
+                                        #Check if new date is already booked by someone else
                                         booked_dates = [
                                             datetime.datetime.strptime(d, "%Y-%m-%d").date()
                                             if isinstance(d, str) else d
@@ -728,7 +756,7 @@ class BookerPage(ttk.Frame):
                                         ]
                                         if booking_start_date in booked_dates:
                                             msgbox.showerror("Error", "Resource is already booked for this date.")
-                                        else:  
+                                        else:
                                             break
                                 except ValueError:
                                     msgbox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
@@ -744,6 +772,9 @@ class BookerPage(ttk.Frame):
                                     booking_end_date = datetime.datetime.strptime(booking_end_date, "%Y-%m-%d").date()
                                     if booking_end_date <= booking_start_date:
                                         msgbox.showerror("Error", "End date must be after start date.")
+                                    elif booking_end_date in booking_range:
+                                        #Allow booking within old range again
+                                        break
                                     else:
                                         booked_dates = [
                                             datetime.datetime.strptime(d, "%Y-%m-%d").date()
@@ -756,6 +787,7 @@ class BookerPage(ttk.Frame):
                                             break
                                 except ValueError:
                                     msgbox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
+                        #Update resource availability again
                         days_booked = [(booking_start_date + datetime.timedelta(days=i)).isoformat()
                             for i in range((booking_end_date - booking_start_date).days + 1)]
                         self.resources.resources[resource_name]["days_booked"] = [
@@ -802,6 +834,7 @@ class BookerPage(ttk.Frame):
                     elif password == self.users.users[username]["password"]:
                         confirm = msgbox.askyesno("Confirm Delete", f"Are you sure you want to delete booking '{booking_name}'?")
                         if confirm:
+                            #Update resource availability again again
                             resource_name = self.bookings.bookings[booking_name]["resource"]
                             start_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["start_date"], "%Y-%m-%d").date()
                             end_date = datetime.datetime.strptime(self.bookings.bookings[booking_name]["end_date"], "%Y-%m-%d").date()
@@ -838,7 +871,7 @@ class ViewerPage(ttk.Frame):
         
         ttk.Button(self, text="View users", command=self.view_users).pack(pady=5)
         ttk.Button(self, text="View resources", command=self.view_resources).pack(pady=5)
-        ttk.Button(self, text="View bookings", command=self.view_resources).pack(pady=5)
+        ttk.Button(self, text="View bookings", command=self.view_bookings).pack(pady=5)
     
     def view_users(self):
         self.users.load_users()

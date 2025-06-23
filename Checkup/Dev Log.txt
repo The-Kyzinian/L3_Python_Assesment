@@ -1,0 +1,22 @@
+﻿https://github.com/The-Kyzinian/L3_Python_Assesment 
+
+
+Tests Done:
+Test
+	Outcome
+	Next Steps
+	Basic unit test
+	Full pass
+	Unnecessary 
+	Throughput testing
+	Full pass
+	Unnecessary 
+	Data integrity testing
+	Full pass
+	Unnecessary 
+	Authentication testing
+	Full pass
+	Unnecessary 
+	Persistence testing
+	Full pass
+	Unnecessary

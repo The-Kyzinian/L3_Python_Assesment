@@ -1,0 +1,48 @@
+Caio Torres Silveira
+Planning
+
+Brief
+A GUI resource-tracking program that tracks what items have been given/borrowed to whom and when they are due for return.  The program should be able to query the array of items for what is lent out, what is still in etc.  This is a generic library program suitable for any type of resource.
+
+
+
+Functional Specs
+Resource Management: Users can create, update, and delete resources (with a title, description and category (optional)), users, categories (groups to sort resources by) and loans (setting availability, bookings and due dates).
+Data Visualization:The ability to search/sort by various categories (the ones from resource management) or by lack of group.
+
+Nonfunctional Specs
+Project will be easy to understand
+Project will be intuitive to use
+All success and errors will be shown through dialogs
+Project will load quickly
+Passwords will not be visible anywhere on the gui
+Only signed-in users can edit or delete their own data.
+.
+
+Incomplete Nonfunctional Specs
+The code must be organized into logical classes and functions, with clear separation between data management and GUI logic.
+All data file paths should be configurable.
+The code should be commented to explain non-obvious logic.
+Passwords are securely stored (should be hashed).
+
+
+
+Assumptions
+System only works for one user at a time. System owns all resources, “owner” is just the person in charge of managing the resource.
+
+Scope
+Not doing returns
+
+Convention Resources
+https://www.otago.ac.nz/its/services/software/resource-booker
+https://www.zoho.com/calendar/help/resource-booking.html
+
+
+Privacy: only full name is stored, however users can leave it blank or delete their account at any time.
+ Legal: template does not use foreign intellectual property, if that is done that is on the template user.
+Ethical: template does not cause ethical concerns, if that is done that is on the template user.
+Cultural: template does not cause cultural concerns, if that is done that is on the template user.
+Implications
+
+Implications cont.
+Social: Template does not cause social concerns, if that is done that is on the template user.
