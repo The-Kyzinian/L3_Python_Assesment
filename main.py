@@ -5,11 +5,12 @@ from tkinter import messagebox as msgbox
 import json
 import datetime
 
-class get_users:
+class Users:
     def __init__(self, filepath="users.json"):
         self.filepath = filepath
         self.load_users()
         self.save_users()
+    
     def load_users(self):
         try:
             with open(self.filepath, 'r') as file:
@@ -22,8 +23,15 @@ class get_users:
     def save_users(self):
         with open(self.filepath, 'w') as file:
             json.dump(self.users, file, indent=4)
+    
+    def delete_user(self, user_name):
+        if user_name in self.users:
+            del self.users[user_name]
+            self.save_users()
+            return True
+        return False
 
-class get_resources:
+class Resources:
     def __init__(self, filepath="resources.json"):
         self.filepath = filepath
         self.load_resources()
@@ -36,15 +44,22 @@ class get_resources:
             self.resources = {}
         except json.JSONDecodeError:
             self.resources = {}
+    
     def save_resources(self):
         with open(self.filepath, 'w') as file:
             json.dump(self.resources, file, indent=4)
+        
+    def update_owners(self, old_owner, new_owner):
+        for resource_key, resource in self.resources.items():
+            if resource["owner"] == old_owner:
+                resource["owner"] = new_owner
             
-class get_bookings:
+class Booking:
     def __init__(self, filepath="bookings.json"):
         self.filepath = filepath
         self.load_bookings()
         self.save_bookings()
+    
     def load_bookings(self):
         try:
             with open(self.filepath, 'r') as file:
@@ -56,6 +71,22 @@ class get_bookings:
     def save_bookings(self):
         with open(self.filepath, 'w') as file:
             json.dump(self.bookings, file, indent=4)
+    
+    def generate_booking_dates(self, resource):
+        booking_dates = []
+        for booking_key, booking in self.bookings.items():
+            if booking["resource"] == resource:
+                start_date = datetime.datetime.strptime(booking["start_date"], "%Y-%m-%d").date()
+                end_date = datetime.datetime.strptime(booking["end_date"], "%Y-%m-%d").date()
+                booking_dates = booking_dates + [(start_date + datetime.timedelta(days=i)).isoformat()
+                    for i in range((end_date - start_date).days + 1)]
+        return booking_dates
+                    
+    def remove_user_bookings(self, user_name):
+        for booking_key, booking in self.bookings.items():
+            if booking["owner"] == user_name:
+                del self.bookings[booking_key]
+        
 
 class App(tk.Tk):
     def __init__(self):
@@ -63,12 +94,16 @@ class App(tk.Tk):
         self.title("Resource Management System")
         self.style = ttk.Style(self)
         self.style.theme_use("clam")
+        
+        self.users = Users()
+        self.resources = Resources()
+        self.bookings = Booking()
 
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
         #Generates pages for the notebook
         self.pages = {}
-        for Page in (UserPage, ResourcePage, BookerPage, ViewerPage):
+        for Page in (UserPage, ResourcePage, BookerPage):
             page = Page(self.notebook, self)
             self.pages[Page.__name__] = page
             self.notebook.add(page, text=page.title)
@@ -78,18 +113,26 @@ class UserPage(ttk.Frame):
     def __init__(self, parent, main_app):
         super().__init__(parent, padding=10)
         self.main_app = main_app
-        self.users = get_users()
-        self.resources = get_resources()
-        self.bookings = get_bookings()
+        
+        tk.Label(self, text="User Portal", font=("Arial", 12)).pack(pady=5)
+        self.user_listbox = tk.Listbox(self, height=10, selectmode=tk.SINGLE)
+        self.user_listbox.pack(fill="x", padx=5, pady=5)
+        self.refresh_user_list()
 
         ttk.Button(self, text="Create New User", command=self.create_user).pack(pady=5)
         ttk.Button(self, text="Edit User Profile", command=self.edit_user).pack(pady=5)
         ttk.Button(self, text="Delete User", command=self.delete_user).pack(pady=5)
+        ttk.Button(self, text="View User Information", command=self.view_user_info).pack(pady=5)
+        ttk.Button(self, text="Refresh User List", command=self.refresh_user_list).pack(pady=5)
+
+    def refresh_user_list(self):
+        self.winfo_children()[1]
+        while self.user_listbox.size() > 0:
+            self.user_listbox.delete(0)
+        for user_name in self.main_app.users.users.keys():
+            self.user_listbox.insert(tk.END, user_name)
 
     def create_user(self):
-        self.users.load_users()
-        self.resources.load_resources()
-        self.bookings.load_bookings()
         while True:
             username = dialog.askstring("Create New User", "Enter Username:")
             if username == None:
@@ -97,7 +140,7 @@ class UserPage(ttk.Frame):
                 return
             elif username == "":
                 msgbox.showerror("Error", "Username cannot be empty.")
-            elif username not in self.users.users:
+            elif username not in self.main_app.users.users:
                 break
             else:
                 msgbox.showerror("Error", "User already exists.")
@@ -117,167 +160,145 @@ class UserPage(ttk.Frame):
                 msgbox.showerror("Error", "Password cannot be empty.")
             else:
               break  
-        self.users.users[username] = {"full_name": full_name, "password": password}
-        self.users.save_users()
+        self.main_app.users.users[username] = {"full_name": full_name, "password": password}
         msgbox.showinfo("Success", f"New user '{username}' created successfully.")
 
     def edit_user(self): 
-        self.users.load_users()
-        self.resources.load_resources()
-        self.bookings.load_bookings()
-        while True:    
-            user_name = dialog.askstring("Edit User", "Enter username to be edited:")
-            if user_name == None:
-                msgbox.showinfo("Cancelled", "User edit cancelled.")
-                return
-            elif user_name == "":
-                msgbox.showerror("Error", "Username cannot be empty.")
-            elif user_name in self.users.users:
-                while True:
-                    password = dialog.askstring("Login", "Enter password to edit user:", show='*')
-                    if password == None:
-                        msgbox.showinfo("Cancelled", "User edit cancelled.")
-                        return
-                    elif password == "":
-                        msgbox.showerror("Error", "Password cannot be empty.")
-                    elif password == self.users.users[user_name]["password"]:
-                        while True:
-                            new_username = dialog.askstring("Edit Username", "Enter new username:", initialvalue=user_name)
-                            if new_username == None:
-                                msgbox.showinfo("Cancelled", "User edit cancelled.")
-                                return
-                            elif new_username == "":
-                                msgbox.showerror("Error", "Username cannot be empty.")
-                            elif new_username != user_name:
-                                if new_username in self.users.users:
-                                    msgbox.showerror("Error", "New username already exists.")
-                                else:
-                                    break
+        if self.user_listbox.curselection():
+            user_name = self.user_listbox.get(self.user_listbox.curselection())
+            while True:
+                password = dialog.askstring("Login", "Enter password to edit user:", show='*')
+                if password == None:
+                    msgbox.showinfo("Cancelled", "User edit cancelled.")
+                    break
+                elif password == "":
+                    msgbox.showerror("Error", "Password cannot be empty.")
+                elif password == self.main_app.users.users[user_name]["password"]:
+                    while True:
+                        new_user_name = dialog.askstring("Edit Username", "Enter new username:", initialvalue=user_name)
+                        if new_user_name == None:
+                            msgbox.showinfo("Cancelled", "User edit cancelled.")
+                            return
+                        elif new_user_name == "":
+                            msgbox.showerror("Error", "Username cannot be empty.")
+                        elif new_user_name != user_name:
+                            if new_user_name in self.users.users:
+                                msgbox.showerror("Error", "New username already exists.")
                             else:
                                 break
-                        self.users.users[new_username] = self.users.users.pop(user_name)
-                        old_user_name = user_name
-                        user_name = new_username  
-                        while True:
-                            full_name = dialog.askstring("Edit Full Name", "Enter new full name:", initialvalue=self.users.users[user_name]["full_name"])
-                            if full_name == None:
-                                msgbox.showinfo("Cancelled", "User edit cancelled.")
-                                return
-                            else:
-                                break
-                        while True:
-                            new_password = dialog.askstring("Edit Password", "Enter new password (leave blank to keep current):", show='*')
-                            if new_password == None:
-                                msgbox.showinfo("Cancelled", "User edit cancelled.")
-                                return
-                            elif new_password == "":
-                                new_password = self.users.users[user_name]["password"]
-                                break
-                            else:
-                                break
-                        if full_name:
-                            self.users.users[user_name]["full_name"] = full_name
-                        if new_password:
-                            self.users.users[user_name]["password"] = new_password
-                        # Update bookings and resources with new username
-                        for booking_name, booking in self.bookings.bookings.items():
-                            if booking["user"] == user_name:
-                                self.bookings.bookings[booking_name]["user"] = user_name
-                        for resource in self.resources.resources.values():
-                            if resource.get("owner") == old_user_name:
-                                resource["owner"] = user_name 
-                        self.users.save_users()
-                        msgbox.showinfo("Success", f"User '{user_name}' updated successfully.")
-                        return
-                    else:
-                        msgbox.showerror("Error", "Incorrect password.")
-                        return
-            else:
-                msgbox.showerror("Error", "User does not exist.")
-
-    def delete_user(self):
-        self.users.load_users()
-        self.resources.load_resources()
-        self.bookings.load_bookings()
-        while True:
-            username = dialog.askstring("Delete User", "Enter username to be deleted:")
-            if username == None:
-                msgbox.showinfo("Cancelled", "User deletion cancelled.")
-                return
-            elif username == "":
-                msgbox.showerror("Error", "Username cannot be empty.")
-            elif username in self.users.users:
-                while True:
-                    password = dialog.askstring("Login", "Enter password to delete user:", show='*')
-                    if password == None:
-                        msgbox.showinfo("Cancelled", "User deletion cancelled.")
-                        return
-                    elif password == "":
-                        msgbox.showerror("Error", "Password cannot be empty.")
-                    elif password == self.users.users[username]["password"]:
-                        confirm = msgbox.askyesno("Confirm Delete", f"Are you sure you want to delete user '{username}'?")
-                        if confirm:
-                            #Tranfer out user's resources
-                            for resource_name, resource in self.resources.resources.items():
-                                if resource.get("owner") == username:
-                                    while True:
-                                        replace_resource = msgbox.askyesno("Resource Ownership", f"User '{username}' owns resource '{resource_name}'. Do you want to transfer ownership to another user?")
-                                        if replace_resource:
-                                            new_owner = dialog.askstring("New Owner", "Enter new owner's username:")
-                                            if new_owner is None:
-                                                msgbox.showinfo("Cancelled", "Resource ownership transfer cancelled. Resource will free for all users.")
-                                                resource["owner"] = None
-                                                break
-                                            elif new_owner == "":
-                                                msgbox.showerror("Error", "New owner name cannot be empty.")
-                                            elif new_owner == username:
-                                                msgbox.showerror("Error", "You cannot transfer ownership to yourself.")
-                                            elif new_owner in self.users.users:
-                                                resource["owner"] = new_owner
-                                                msgbox.showinfo("Success", f"Resource ownership transferred to '{new_owner}'.")
-                                                break
-                                            else:
-                                                msgbox.showerror("Error", "New owner does not exist.")
-                                        else:
-                                            resource["owner"] = None
-                                            msgbox.showinfo("Success", f"Resource '{resource_name}' is now available for all users.")
-                                            break
-                            #Removes user's bookings and updates resources
-                            for booking_name, booking in list(self.bookings.bookings.items()):
-                                if booking["user"] == username:
-                                    resource_name = booking["resource"]
-                                    start_date = datetime.datetime.strptime(booking["start_date"], "%Y-%m-%d").date()
-                                    end_date = datetime.datetime.strptime(booking["end_date"], "%Y-%m-%d").date()
-                                    days_booked = [(start_date + datetime.timedelta(days=i)).isoformat()
-                                        for i in range((end_date - start_date).days + 1)]
-                                    self.resources.resources[resource_name]["days_booked"] = [
-                                        d for d in self.resources.resources[resource_name]["days_booked"]
-                                        if d not in days_booked
-                                    ]
-                                    del self.bookings.bookings[booking]
-                            self.resources.save_resources()
-                            self.bookings.save_bookings()
-                            del self.users.users[username]
-                            self.users.save_users()
-                            msgbox.showinfo("Success", f"User '{username}' deleted successfully.")
+                        else:
+                            break
+                    self.main_app.users.users[new_user_name] = self.main_app.users.users.pop(user_name)
+                    old_user_name = user_name
+                    user_name = new_user_name  
+                    while True:
+                        full_name = dialog.askstring("Edit Full Name", "Enter new full name:", initialvalue=self.main_app.users.users[user_name]["full_name"])
+                        if full_name == None:
+                            msgbox.showinfo("Cancelled", "User edit cancelled.")
                             return
                         else:
-                            msgbox.showinfo("Cancelled", "User deletion cancelled.")
+                            break
+                    while True:
+                        new_password = dialog.askstring("Edit Password", "Enter new password (leave blank to keep current):", show='*')
+                        if new_password == None:
+                            msgbox.showinfo("Cancelled", "User edit cancelled.")
                             return
+                        elif new_password == "":
+                            new_password = self.main_app.users.users[user_name]["password"]
+                            break
+                        else:
+                            break
+                    if full_name:
+                        self.main_app.users.users[user_name]["full_name"] = full_name
+                    if new_password:
+                        self.main_app.users.users[user_name]["password"] = new_password
+                    # Update bookings and resources with new username
+                    for booking_name, booking in self.main_app.bookings.bookings.items():
+                        if booking["owner"] == user_name:
+                            self.main_app.bookings.bookings[booking_name]["owner"] = user_name
+                    for resource in self.main_app.resources.resources.values():
+                        if resource.get("owner") == old_user_name:
+                            resource["owner"] = user_name 
+                    msgbox.showinfo("Success", f"User '{user_name}' updated successfully.")
+                    self.refresh_user_list()
+                    return
+                else:
+                    msgbox.showerror("Error", "Incorrect password.")
+                    return
+        else:
+            msgbox.showerror("Error", "No user selected for editing.")
+
+    def delete_user(self):
+        if self.user_listbox.curselection():
+            user_name = self.user_listbox.get(self.user_listbox.curselection())
+            while True:
+                password = dialog.askstring("Login", "Enter password to delete user:", show='*')
+                if password == None:
+                    msgbox.showinfo("Cancelled", "User deletion cancelled.")
+                    break
+                elif password == "":
+                    msgbox.showerror("Error", "Password cannot be empty.")
+                elif password == self.main_app.users.users[user_name]["password"]:
+                    confirm = msgbox.askyesno("Confirm Delete", f"Are you sure you want to delete user '{user_name}'?")
+                    if confirm:
+                        change_owner = msgbox.askyesno("Change Owner", "Do you want to change the owner of resources owned by this user?")
+                        if change_owner:
+                            while True:
+                                new_owner = dialog.askstring("New Owner", "Enter new owner's username:")
+                                if new_owner is None:
+                                    msgbox.showinfo("Cancelled", "Owner change cancelled. Resources will be free for all users.")
+                                    change_owner = False
+                                    break
+                                elif new_owner == "":
+                                    msgbox.showerror("Error", "New owner cannot be empty.")
+                                elif new_owner in self.main_app.users.users:
+                                    self.main_app.resources.update_owners(user_name, new_owner)
+                                    break
+                                else:
+                                    msgbox.showerror("Error", "New owner does not exist. Please enter a valid username.")
+                        else:
+                            self.main_app.resources.update_owners(user_name, None)
+                        self.main_app.bookings.remove_user_bookings(user_name)
+                        self.main_app.users.delete_user(user_name)
+                        self.refresh_user_list()
                     else:
-                        msgbox.showerror("Error", "Incorrect password.")
-                        return
-            else:
-                msgbox.showerror("Error", "User does not exist.")
+                        msgbox.showinfo("Cancelled", "User deletion cancelled.")
+                        break
+                else:
+                    msgbox.showerror("Error", "Incorrect password.")
+                    break
+            self.refresh_user_list()
+        else:
+            msgbox.showerror("Error", "No user selected for deletion.")
+
+    def view_user_info(self):
+        dialog_window = tk.Toplevel(self)
+        dialog_window.title("User Information")
+        dialog_window.grab_set()
+        
+        frame = ttk.Frame(dialog_window, padding="15")
+        frame.pack(fill="both", expand=True)
+        
+        ttk.Label(frame, text="User Information", font=("Arial", 12)).pack(pady=(0, 15))
+        
+        columns = ("Username", "Full Name")
+        tree = ttk.Treeview(frame, columns=columns, show="headings")
+        tree.heading("Username", text="Username")
+        tree.heading("Full Name", text="Full Name")
+        tree.pack(fill="both", expand=True)
+
+        # Insert user data into the grid
+        for user_name, info in self.main_app.users.users.items():
+            tree.insert("", "end", values=(user_name, info.get("full_name", "")))
 
 class ResourcePage(ttk.Frame):
     title = "Resource Creator/Editor"
     def __init__(self, parent, main_app):
         super().__init__(parent, padding=10)
         self.main_app = main_app
-        self.users = get_users() 
-        self.resources = get_resources()
-        self.bookings = get_bookings()
+        self.users = Users() 
+        self.resources = Resources()
+        self.bookings = Booking()
 
         ttk.Button(self, text="Create Resource", command=self.create_resource).pack(pady=5)
         ttk.Button(self, text="Edit Resource", command=self.edit_resource).pack(pady=5)
@@ -555,9 +576,9 @@ class BookerPage(ttk.Frame):
     def __init__(self, parent, main_app):
         super().__init__(parent, padding=10)
         self.main_app = main_app
-        self.users = get_users()
-        self.resources = get_resources()
-        self.bookings = get_bookings()
+        self.users = Users()
+        self.resources = Resources()
+        self.bookings = Booking()
 
         ttk.Button(self, text="Create Booking", command=self.create_booking).pack(pady=5)
         ttk.Button(self, text="Edit Booking", command=self.edit_booking).pack(pady=5)
@@ -576,13 +597,13 @@ class BookerPage(ttk.Frame):
                 msgbox.showerror("Error", "Booking name cannot be empty.")
             elif booking_name not in self.bookings.bookings:
                 while True:
-                    username = dialog.askstring("User Name", "Enter username for booking:")
-                    if username == None:
+                    user_name = dialog.askstring("User Name", "Enter username for booking:")
+                    if user_name == None:
                         msgbox.showinfo("Cancelled", "Booking creation cancelled.")
                         return
-                    elif username == "":
+                    elif user_name == "":
                         msgbox.showerror("Error", "Username cannot be empty.")
-                    elif username in self.users.users:
+                    elif user_name in self.users.users:
                         while True:
                             password = dialog.askstring("Login", "Enter password to book resource:", show='*')
                             if password == None:
@@ -590,7 +611,7 @@ class BookerPage(ttk.Frame):
                                 return
                             elif password == "":
                                 msgbox.showerror("Error", "Password cannot be empty.")
-                            elif password == self.users.users[username]["password"]:
+                            elif password == self.users.users[user_name]["password"]:
                                 break
                             else:
                                 msgbox.showerror("Error", "Incorrect password.")
@@ -668,7 +689,7 @@ class BookerPage(ttk.Frame):
                 self.resources.resources[resource_name]["days_booked"].extend(days_booked)
                 self.resources.save_resources()
                 self.bookings.bookings[booking_name] = {
-                    "owner": username,
+                    "owner": user_name,
                     "resource": resource_name,
                     "start_date": booking_start_date.isoformat(),
                     "end_date": booking_end_date.isoformat(),
@@ -691,7 +712,7 @@ class BookerPage(ttk.Frame):
             elif booking_name == "":
                 msgbox.showerror("Error", "Booking name cannot be empty.")
             elif booking_name in self.bookings.bookings:
-                username = self.bookings.bookings[booking_name]["owner"]
+                user_name = self.bookings.bookings[booking_name]["owner"]
                 while True:
                     password = dialog.askstring("Login", "Enter password to edit booking:", show='*')
                     if password == None:
@@ -699,7 +720,7 @@ class BookerPage(ttk.Frame):
                         return
                     elif password == "":
                         msgbox.showerror("Error", "Password cannot be empty.")
-                    elif password == self.users.users[username]["password"]:
+                    elif password == self.users.users[user_name]["password"]:
                         while True:
                             new_booking_name = dialog.askstring("Edit Booking Name", "Enter new booking name:", initialvalue=booking_name)
                             if new_booking_name == None:
@@ -797,7 +818,7 @@ class BookerPage(ttk.Frame):
                         self.resources.resources[resource_name]["days_booked"].extend(days_booked)
                         self.resources.save_resources() 
                         self.bookings.bookings[booking_name] = {
-                            "owner": username,
+                            "owner": user_name,
                             "resource": resource_name,
                             "start_date": booking_start_date.isoformat(),
                             "end_date": booking_end_date.isoformat(),
@@ -823,7 +844,7 @@ class BookerPage(ttk.Frame):
             elif booking_name == "":
                 msgbox.showerror("Error", "Booking name cannot be empty.")    
             elif booking_name in self.bookings.bookings:
-                username = self.bookings.bookings[booking_name]["owner"]
+                user_name = self.bookings.bookings[booking_name]["owner"]
                 while True:    
                     password = dialog.askstring("Login", "Enter password to delete booking:", show='*')
                     if password == None:
@@ -831,7 +852,7 @@ class BookerPage(ttk.Frame):
                         return
                     elif password == "":
                         msgbox.showerror("Error", "Password cannot be empty.")
-                    elif password == self.users.users[username]["password"]:
+                    elif password == self.users.users[user_name]["password"]:
                         confirm = msgbox.askyesno("Confirm Delete", f"Are you sure you want to delete booking '{booking_name}'?")
                         if confirm:
                             #Update resource availability again again
@@ -858,44 +879,6 @@ class BookerPage(ttk.Frame):
                 break
             else:
                 msgbox.showerror("Error", "Booking does not exist.")
-        
-        
-class ViewerPage(ttk.Frame):
-    title = "Item Viewer"
-    def __init__(self, parent, main_app):
-        super().__init__(parent, padding=10)
-        self.main_app = main_app 
-        self.users = get_users()
-        self.resources = get_resources()
-        self.bookings = get_bookings()
-        
-        ttk.Button(self, text="View users", command=self.view_users).pack(pady=5)
-        ttk.Button(self, text="View resources", command=self.view_resources).pack(pady=5)
-        ttk.Button(self, text="View bookings", command=self.view_bookings).pack(pady=5)
-    
-    def view_users(self):
-        self.users.load_users()
-        user_list = "\n".join(self.main_app.pages['UserPage'].users.users.keys())
-        if user_list:
-            msgbox.showinfo("Users", f"Current Users:\n{user_list}")
-        else:
-            msgbox.showinfo("Users", "No users found.")
-    
-    def view_resources(self):
-        self.resources.load_resources()
-        resource_list = "\n".join(self.main_app.pages['ResourcePage'].resources.resources.keys())
-        if resource_list:
-            msgbox.showinfo("Resources", f"Current Resources:\n{resource_list}")
-        else:
-            msgbox.showinfo("Resources", "No resources found.")
-    
-    def view_bookings(self):
-        self.bookings.load_bookings()
-        booking_list = "\n".join(self.main_app.pages['BookerPage'].bookings.bookings.keys())
-        if booking_list:
-            msgbox.showinfo("Bookings", f"Current Bookings:\n{booking_list}")
-        else:
-            msgbox.showinfo("Bookings", "No bookings found.")
         
 if __name__ == "__main__":
     MyApp = App()
