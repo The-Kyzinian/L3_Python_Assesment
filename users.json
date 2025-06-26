@@ -3,16 +3,12 @@
         "full_name": "john deere",
         "password": "secure"
     },
-    "null": {
-        "full_name": null,
-        "password": null
-    },
-    "existing": {
-        "full_name": "newuser",
-        "password": "Full Name"
-    },
     "newer": {
         "full_name": "john bass",
         "password": "o"
+    },
+    ";new": {
+        "full_name": "",
+        "password": "p"
     }
 }

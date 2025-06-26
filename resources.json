@@ -2,47 +2,21 @@
     "test": {
         "description": "no",
         "available": true,
-        "owner": "john",
-        "days_booked": [
-            "2025-07-09",
-            "2025-07-10",
-            "2025-07-11",
-            "2025-07-12",
-            "2025-07-13"
-        ]
+        "owner": "john"
     },
     "file": {
         "description": "yes",
         "available": false,
-        "owner": "tester",
-        "days_booked": []
+        "owner": "tester"
     },
     "fun": {
         "description": "",
         "available": true,
-        "owner": "newer",
-        "days_booked": [
-            "2025-07-01",
-            "2025-07-02",
-            "2025-07-03",
-            "2025-07-04",
-            "2025-07-05",
-            "2025-07-06",
-            "2025-07-07",
-            "2025-07-08",
-            "2025-07-09",
-            "2025-06-24",
-            "2025-06-25",
-            "2025-06-26",
-            "2025-06-27",
-            "2025-06-28",
-            "2025-06-29"
-        ]
+        "owner": "newer"
     },
     "meme": {
         "description": "test",
         "available": true,
-        "owner": "newer",
-        "days_booked": []
+        "owner": "newer"
     }
 }
