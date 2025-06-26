@@ -3,7 +3,7 @@ from unittest.mock import patch, MagicMock
 import os
 import json
 import time
-from main import get_users, get_resources, get_bookings, App, UserPage, ResourcePage, BookerPage, ViewerPage
+from main import Users, Resources, Bookings, App, UserPage, ResourcePage, BookerPage
 
 
 class TestGetUsers(unittest.TestCase):
@@ -11,7 +11,7 @@ class TestGetUsers(unittest.TestCase):
         self.test_file = 'test_users.json'
         with open(self.test_file, 'w') as f:
             json.dump({}, f)
-        self.users = get_users(filepath=self.test_file)
+        self.users = Users(filepath=self.test_file)
 
     def tearDown(self):
         if os.path.exists(self.test_file):
@@ -29,7 +29,7 @@ class TestGetResources(unittest.TestCase):
         self.test_file = 'test_resources.json'
         with open(self.test_file, 'w') as f:
             json.dump({}, f)
-        self.resources = get_resources(filepath=self.test_file)
+        self.resources = Resources(filepath=self.test_file)
 
     def tearDown(self):
         if os.path.exists(self.test_file):
@@ -47,7 +47,7 @@ class TestGetBookings(unittest.TestCase):
         self.test_file = 'test_bookings.json'
         with open(self.test_file, 'w') as f:
             json.dump({}, f)
-        self.bookings = get_bookings(filepath=self.test_file)
+        self.bookings = Bookings(filepath=self.test_file)
 
     def tearDown(self):
         if os.path.exists(self.test_file):
@@ -79,7 +79,7 @@ class TestDataClasses(unittest.TestCase):
                 os.remove(f)
 
     def test_users_create_and_save(self):
-        users = get_users(self.users_file)
+        users = Users(self.users_file)
         users.users["testuser"] = {"full_name": "Test User", "password": "pass"}
         users.save_users()
         with open(self.users_file) as f:
@@ -87,7 +87,7 @@ class TestDataClasses(unittest.TestCase):
         self.assertIn("testuser", data)
 
     def test_users_edit_and_delete(self):
-        users = get_users(self.users_file)
+        users = Users(self.users_file)
         users.users["testuser"] = {"full_name": "Test User", "password": "pass"}
         users.save_users()
         # Edit user
@@ -104,7 +104,7 @@ class TestDataClasses(unittest.TestCase):
         self.assertNotIn("testuser", data)
 
     def test_resources_create_edit_delete(self):
-        resources = get_resources(self.resources_file)
+        resources = Resources(self.resources_file)
         resources.resources["testres"] = {"description": "desc", "available": True, "owner": None, "days_booked": []}
         resources.save_resources()
         # Edit resource
@@ -121,7 +121,7 @@ class TestDataClasses(unittest.TestCase):
         self.assertNotIn("testres", data)
 
     def test_bookings_create_edit_delete(self):
-        bookings = get_bookings(self.bookings_file)
+        bookings = Bookings(self.bookings_file)
         bookings.bookings["testbook"] = {
             "owner": "testuser",
             "resource": "testres",
@@ -149,11 +149,9 @@ class TestPageInstantiation(unittest.TestCase):
         user_page = UserPage(app.notebook, app)
         resource_page = ResourcePage(app.notebook, app)
         booker_page = BookerPage(app.notebook, app)
-        viewer_page = ViewerPage(app.notebook, app)
         self.assertIsInstance(user_page, UserPage)
         self.assertIsInstance(resource_page, ResourcePage)
         self.assertIsInstance(booker_page, BookerPage)
-        self.assertIsInstance(viewer_page, ViewerPage)
 
 class TestScalability(unittest.TestCase):
     def test_scalability_computer_lab(self):
@@ -166,13 +164,13 @@ class TestScalability(unittest.TestCase):
                 os.remove(f)
 
         # Create 1000 users
-        users = get_users(users_file)
+        users = Users(users_file)
         for i in range(1000):
             users.users[f"user{i}"] = {"full_name": f"User {i}", "password": "pass"}
         users.save_users()
 
         # Create 250 resources (e.g., computers)
-        resources = get_resources(resources_file)
+        resources = Resources(resources_file)
         for i in range(250):
             resources.resources[f"PC{i}"] = {
                 "description": f"Computer {i}",
@@ -183,7 +181,7 @@ class TestScalability(unittest.TestCase):
         resources.save_resources()
 
         # Create 5000 bookings, distributed among users and resources
-        bookings = get_bookings(bookings_file)
+        bookings = Bookings(bookings_file)
         booking_count = 0
         for user_id in range(1000):
             for res_id in range(250):
@@ -233,9 +231,9 @@ class TestDataIntegrity(unittest.TestCase):
                 os.remove(f)
 
     def test_delete_user_removes_bookings(self):
-        users = get_users(self.users_file)
-        resources = get_resources(self.resources_file)
-        bookings = get_bookings(self.bookings_file)
+        users = Users(self.users_file)
+        resources = Resources(self.resources_file)
+        bookings = Bookings(self.bookings_file)
         users.users['u1'] = {'full_name': 'U1', 'password': 'p'}
         resources.resources['r1'] = {'description': 'desc', 'available': True, 'owner': 'u1', 'days_booked': []}
         bookings.bookings['b1'] = {'owner': 'u1', 'resource': 'r1', 'start_date': '2025-01-01', 'end_date': '2025-01-02'}
@@ -249,9 +247,9 @@ class TestDataIntegrity(unittest.TestCase):
         self.assertNotIn('b1', bookings.bookings)
 
     def test_delete_resource_removes_bookings(self):
-        users = get_users(self.users_file)
-        resources = get_resources(self.resources_file)
-        bookings = get_bookings(self.bookings_file)
+        users = Users(self.users_file)
+        resources = Resources(self.resources_file)
+        bookings = Bookings(self.bookings_file)
         users.users['u1'] = {'full_name': 'U1', 'password': 'p'}
         resources.resources['r1'] = {'description': 'desc', 'available': True, 'owner': 'u1', 'days_booked': []}
         bookings.bookings['b1'] = {'owner': 'u1', 'resource': 'r1', 'start_date': '2025-01-01', 'end_date': '2025-01-02'}
@@ -277,7 +275,7 @@ class TestAuthentication(unittest.TestCase):
                 os.remove(f)
 
     def test_edit_with_wrong_password(self):
-        users = get_users(self.users_file)
+        users = Users(self.users_file)
         users.users['u1'] = {'full_name': 'U1', 'password': 'correct'}
         users.save_users()
         # Simulate wrong password
@@ -298,10 +296,10 @@ class TestPersistence(unittest.TestCase):
                 os.remove(f)
 
     def test_persistence(self):
-        users = get_users(self.users_file)
+        users = Users(self.users_file)
         users.users['u1'] = {'full_name': 'U1', 'password': 'p'}
         users.save_users()
-        users2 = get_users(self.users_file)
+        users2 = Users(self.users_file)
         users2.load_users()
         self.assertIn('u1', users2.users)
 

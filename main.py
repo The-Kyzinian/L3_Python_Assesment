@@ -72,7 +72,7 @@ class Resources:
             if resource["owner"] == old_owner:
                 resource["owner"] = new_owner
             
-class Booking:
+class Bookings:
     def __init__(self, filepath="bookings.json"):
         self.filepath = filepath
         self.load_bookings()
@@ -122,7 +122,7 @@ class App(tk.Tk):
         
         self.users = Users()
         self.resources = Resources()
-        self.bookings = Booking()
+        self.bookings = Bookings()
 
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
