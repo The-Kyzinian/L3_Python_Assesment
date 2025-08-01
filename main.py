@@ -6,12 +6,15 @@ import json
 import datetime
 
 class Users:
+    """Handles user management including loading, saving, authentication, and deletion."""
     def __init__(self, filepath="users.json"):
+        """Initializes Users with a given JSON file path."""
         self.filepath = filepath
         self.load_users()
         self.save_users()
     
     def load_users(self):
+        """Loads users from the JSON file."""
         try:
             with open(self.filepath, 'r') as file:
                 self.users = json.load(file)
@@ -21,10 +24,12 @@ class Users:
             self.users = {}
             
     def save_users(self):
+        """Saves users to the JSON file."""
         with open(self.filepath, 'w') as file:
             json.dump(self.users, file, indent=4)
     
     def delete_user(self, user_name):
+        """Deletes a user by username."""
         if user_name in self.users:
             del self.users[user_name]
             self.save_users()
@@ -32,6 +37,7 @@ class Users:
         return False
     
     def log_in(self, user_name, start_text, cancel_text):
+        """Prompts for password and authenticates a user."""
         fail_count = 0
         while True:
             password = dialog.askstring("Login", "Enter password to "+start_text+":", show='*')
@@ -50,11 +56,14 @@ class Users:
                     return True
 
 class Resources:
+    """Handles resource management including loading, saving, updating owners."""
     def __init__(self, filepath="resources.json"):
+        """Initializes Resources with a given JSON file path."""
         self.filepath = filepath
         self.load_resources()
         self.save_resources()
     def load_resources(self):
+        """Loads resources from the JSON file."""
         try:
             with open(self.filepath, 'r') as file:
                 self.resources = json.load(file)
@@ -64,21 +73,26 @@ class Resources:
             self.resources = {}
     
     def save_resources(self):
+        """Saves resources to the JSON file."""
         with open(self.filepath, 'w') as file:
             json.dump(self.resources, file, indent=4)
         
     def update_owners(self, old_owner, new_owner):
+        """Updates the owner of resources from old_owner to new_owner."""
         for resource_key, resource in self.resources.items():
             if resource["owner"] == old_owner:
                 resource["owner"] = new_owner
             
 class Bookings:
+    """Handles booking management including loading, saving, and date calculations."""
     def __init__(self, filepath="bookings.json"):
+        """Initializes Bookings with a given JSON file path."""
         self.filepath = filepath
         self.load_bookings()
         self.save_bookings()
     
     def load_bookings(self):
+        """Loads bookings from the JSON file."""
         try:
             with open(self.filepath, 'r') as file:
                 self.bookings = json.load(file)
@@ -87,10 +101,12 @@ class Bookings:
         except json.JSONDecodeError:
             self.bookings = {}
     def save_bookings(self):
+        """Saves bookings to the JSON file."""
         with open(self.filepath, 'w') as file:
             json.dump(self.bookings, file, indent=4)
     
     def generate_booking_dates(self, resource):
+        """Generates a list of all booked dates for a given resource."""
         booking_dates = []
         for booking_key, booking in self.bookings.items():
             if booking["resource"] == resource:
@@ -101,18 +117,22 @@ class Bookings:
         return booking_dates
                     
     def remove_user_bookings(self, user_name):
+        """Removes all bookings for a given user."""
         for booking_key, booking in self.bookings.items():
             if booking["owner"] == user_name:
                 del self.bookings[booking_key]
     
     def remove_resource_bookings(self, resource):
+        """Removes all bookings for a given resource."""
         for booking_key, booking in self.bookings.items():
             if booking["resource"] == resource:
                 del self.bookings[booking_key]
         
 
 class App(tk.Tk):
+    """Main application window for the Resource Management System."""
     def __init__(self):
+        """Initializes the main application window and its components."""
         super().__init__()
         self.title("Resource Management System")
         self.style = ttk.Style(self)
@@ -139,18 +159,22 @@ class App(tk.Tk):
         ttk.Button(button_frame, text="Save & Exit", command=self.save_exit).pack(side="left")
     
     def save(self):
+        """Saves all user, resource, and booking data."""
         self.users.save_users()
         self.resources.save_resources()
         self.bookings.save_bookings()
         msgbox.showinfo("Success", "All data saved successfully.")
     
     def save_exit(self):
+        """Saves all data and exits the application."""
         self.save()
         self.destroy()
 
 class UserPage(ttk.Frame):
+    """User management page for creating, editing, deleting, and viewing users."""
     title = "User Portal"
     def __init__(self, parent, main_app):
+        """Initializes the UserPage frame."""
         super().__init__(parent, padding=10)
         self.main_app = main_app
         
@@ -166,6 +190,7 @@ class UserPage(ttk.Frame):
         ttk.Button(self, text="View User Information", command=self.view_user_info).pack(pady=5)
 
     def refresh_user_list(self):
+        """Refreshes the user listbox with current users."""
         self.winfo_children()[1]
         while self.user_listbox.size() > 0:
             self.user_listbox.delete(0)
@@ -173,6 +198,7 @@ class UserPage(ttk.Frame):
             self.user_listbox.insert(tk.END, user_name)
 
     def create_user(self):
+        """Handles creation of a new user."""
         while True:
             username = dialog.askstring("Create New User", "Enter Username:")
             if username == None:
@@ -202,8 +228,10 @@ class UserPage(ttk.Frame):
               break  
         self.main_app.users.users[username] = {"full_name": full_name, "password": password}
         msgbox.showinfo("Success", f"New user '{username}' created successfully.")
-
+        self.refresh_user_list()
+        
     def edit_user(self): 
+        """Handles editing of an existing user."""
         if self.user_listbox.curselection():
             user_name = self.user_listbox.get(self.user_listbox.curselection())
             cancel = self.main_app.users.log_in(user_name, "edit user", "User edit")
@@ -262,6 +290,7 @@ class UserPage(ttk.Frame):
             msgbox.showerror("Error", "No user selected for editing.")
 
     def delete_user(self):
+        """Handles deletion of a user."""
         if self.user_listbox.curselection():
             user_name = self.user_listbox.get(self.user_listbox.curselection())
             cancel = self.main_app.users.log_in(user_name, "delete user", "User deletion")
@@ -294,6 +323,7 @@ class UserPage(ttk.Frame):
             msgbox.showerror("Error", "No user selected for deletion.")
 
     def view_user_info(self):
+        """Displays user information in a dialog window."""
         dialog_window = tk.Toplevel(self)
         dialog_window.title("User Information")
         dialog_window.grab_set()
@@ -314,8 +344,10 @@ class UserPage(ttk.Frame):
             tree.insert("", "end", values=(user_name, info.get("full_name", "")))
 
 class ResourcePage(ttk.Frame):
+    """Resource management page for creating, editing, deleting, and viewing resources."""
     title = "Resource Creator/Editor"
     def __init__(self, parent, main_app):
+        """Initializes the ResourcePage frame."""
         super().__init__(parent, padding=10)
         self.main_app = main_app
         
@@ -331,6 +363,7 @@ class ResourcePage(ttk.Frame):
         ttk.Button(self, text="View Resource Information", command=self.view_resource_info).pack(pady=5)
 
     def refresh_resource_list(self):
+        """Refreshes the resource listbox with current resources."""
         self.winfo_children()[1]
         while self.resource_listbox.size() > 0:
             self.resource_listbox.delete(0)
@@ -338,6 +371,7 @@ class ResourcePage(ttk.Frame):
             self.resource_listbox.insert(tk.END, resource_name)
 
     def create_resource(self):
+        """Handles creation of a new resource."""
         while True:
             resource_name = dialog.askstring("Create Resource", "Enter resource name:")
             if resource_name == None:
@@ -384,11 +418,13 @@ class ResourcePage(ttk.Frame):
                     "owner": owner_name
                 }
                 msgbox.showinfo("Success", f"Resource '{resource_name}' created successfully.")
+                self.refresh_resource_list()
                 break  
             else:
                 msgbox.showerror("Error", "Resource already exists.")
 
     def edit_resource(self):
+        """Handles editing of an existing resource."""
         if self.resource_listbox.curselection():
             resource_name = self.resource_listbox.get(self.resource_listbox.curselection())
             if "owner" in self.main_app.resources.resources[resource_name] == None:
@@ -518,6 +554,7 @@ class ResourcePage(ttk.Frame):
             msgbox.showerror("Error", "No resource selected for editing.")
 
     def delete_resource(self):
+        """Handles deletion of a resource."""
         if self.resource_listbox.curselection():
             resource_name = self.resource_listbox.get(self.resource_listbox.curselection())
             if "owner" in self.main_app.resources.resources[resource_name] == None:
@@ -544,6 +581,7 @@ class ResourcePage(ttk.Frame):
             msgbox.showerror("Error", "No resource selected for deletion.")
     
     def view_resource_info(self):
+        """Displays resource information in a dialog window."""
         dialog_window = tk.Toplevel(self)
         dialog_window.title("Resource Information")
         dialog_window.grab_set()
@@ -566,8 +604,10 @@ class ResourcePage(ttk.Frame):
             tree.insert("", "end", values=(resource_name, info.get("description", ""), info.get("available", False), info.get("owner", "None")))
 
 class BookerPage(ttk.Frame):
+    """Booking management page for creating, editing, deleting, and viewing bookings."""
     title = "Booking System"
     def __init__(self, parent, main_app):
+        """Initializes the BookerPage frame."""
         super().__init__(parent, padding=10)
         self.main_app = main_app
         tk.Label(self, text="Booking System", font=("Arial", 12)).pack(pady=5)
@@ -582,6 +622,7 @@ class BookerPage(ttk.Frame):
         ttk.Button(self, text="View Booking Information", command=self.view_booking_info).pack(pady=5)
         
     def refresh_booking_list(self):
+        """Refreshes the booking listbox with current bookings."""
         self.winfo_children()[1]
         while self.booking_listbox.size() > 0:
             self.booking_listbox.delete(0)
@@ -589,6 +630,7 @@ class BookerPage(ttk.Frame):
             self.booking_listbox.insert(tk.END, booking_name)
 
     def create_booking(self):
+        """Handles creation of a new booking."""
         while True:
             booking_name = dialog.askstring("Create Booking", "Enter booking name:")
             if booking_name == None:
@@ -680,20 +722,20 @@ class BookerPage(ttk.Frame):
                 days_booked = [(booking_start_date + datetime.timedelta(days=i)).isoformat()
                     for i in range((booking_end_date - booking_start_date).days + 1)]
                 self.main_app.resources.resources[resource_name]["days_booked"].extend(days_booked)
-                self.main_app.resources.save_resources()
                 self.main_app.bookings.bookings[booking_name] = {
                     "owner": user_name,
                     "resource": resource_name,
                     "start_date": booking_start_date.isoformat(),
                     "end_date": booking_end_date.isoformat(),
                 }
-                self.main_app.bookings.save_bookings()
                 msgbox.showinfo("Success", f"Booking '{booking_name}' created successfully.")
+                self.refresh_booking_list()
                 break
             else:
                 msgbox.showerror("Error", "Booking does not exist.")
 
     def edit_booking(self):
+        """Handles editing of an existing booking."""
         if self.booking_listbox.curselection():
             booking_name = self.booking_listbox.get(self.booking_listbox.curselection())
             user_name = self.main_app.bookings.bookings[booking_name]["owner"]
@@ -787,6 +829,7 @@ class BookerPage(ttk.Frame):
             msgbox.showerror("Error", "No booking selected for editing.")
                   
     def delete_booking(self):
+        """Handles deletion of a booking."""
         if self.booking_listbox.curselection():
             booking_name = self.booking_listbox.get(self.booking_listbox.curselection())
             user_name = self.main_app.bookings.bookings[booking_name]["owner"]
@@ -804,6 +847,7 @@ class BookerPage(ttk.Frame):
             msgbox.showerror("Error", "No booking selected for deletion.")
     
     def view_booking_info(self):
+        """Displays booking information in a dialog window."""
         dialog_window = tk.Toplevel(self)
         dialog_window.title("Booking Information")
         dialog_window.grab_set()
@@ -827,5 +871,6 @@ class BookerPage(ttk.Frame):
             tree.insert("", "end", values=(booking_name, info["owner"], info["resource"], info["start_date"], info["end_date"]))
         
 if __name__ == "__main__":
+    """Entry point for the application."""
     MyApp = App()
     MyApp.mainloop()
